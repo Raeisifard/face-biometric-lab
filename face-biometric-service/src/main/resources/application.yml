@@ -1,0 +1,30 @@
+server:
+  port: 8090
+spring:
+  application:
+    name: face-biometric-service
+  flyway:
+    enabled: false
+biometric:
+  repository-type: memory
+  model-id: arcface-512
+  model-version: w600k-r50
+  dimension: 512
+  algorithm: COSINE
+  threshold: 0.50
+  normalized-required: true
+  oracle:
+    url: ${BIOMETRIC_ORACLE_URL:jdbc:oracle:thin:@172.16.88.115:1521/XE}
+    username: ${BIOMETRIC_ORACLE_USERNAME:oracle}
+    password: ${BIOMETRIC_ORACLE_PASSWORD:oracle}
+  mongo:
+    uri: ${BIOMETRIC_MONGO_URI:mongodb://172.16.88.115:27017}
+    database: ${BIOMETRIC_MONGO_DATABASE:face_biometric}
+    collection: ${BIOMETRIC_MONGO_COLLECTION:face_embeddings}
+  cors:
+    allowed-origins: ${BIOMETRIC_CORS_ORIGINS:http://localhost:8091}
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

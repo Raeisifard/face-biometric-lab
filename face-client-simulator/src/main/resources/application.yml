@@ -1,0 +1,30 @@
+server:
+  port: 8091
+
+spring:
+  application:
+    name: face-client-simulator
+  servlet:
+    multipart:
+      max-file-size: 8MB
+      max-request-size: 8MB
+
+simulator:
+  server-base-url: ${BIOMETRIC_SERVER_URL:http://localhost:8090}
+  detector-model-path: ${FACE_DETECTOR_MODEL:../models/detector/face_detection_yunet_2023mar.onnx}
+  recognition-model-path: ${FACE_RECOGNITION_MODEL:../models/recognition/w600k_r50.onnx}
+  liveness-model-path: ${FACE_LIVENESS_MODEL:../models/liveness/2.7_80x80_MiniFASNetV2.onnx}
+  recognition-model-id: arcface-512
+  recognition-model-version: w600k-r50
+  detection-threshold: 0.75
+  matching-liveness-threshold: 0.80
+  liveness-min-frames: 12
+  required-temporal-motion: 0.20
+  liveness-frame-rate: 4
+  max-upload-bytes: 8388608
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

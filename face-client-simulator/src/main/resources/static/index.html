@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Face Client Simulator</title>
+  <link rel="stylesheet" href="/css/app.css" />
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+</head>
+<body>
+  <main class="shell" x-data="simulatorApp()">
+    <header class="topbar">
+      <div><h1>Face Client Simulator</h1><p>Windows camera → liveness → 512-D embedding → biometric service</p></div>
+      <div class="status-pill" :class="statusClass()" x-text="state.status"></div>
+    </header>
+
+    <section class="grid">
+      <article class="card camera-card">
+        <div class="card-title"><h2>Mobile Camera Simulation</h2><button class="help" @click="showHelp='camera'">?</button></div>
+        <div class="camera-toolbar">
+          <label>Camera<select x-model="deviceId"><template x-for="d in cameras" :key="d.deviceId"><option :value="d.deviceId" x-text="d.label || 'Camera '+d.deviceId.slice(0,6)"></option></template></select></label>
+          <button @click="refreshCameras">Refresh</button>
+          <button class="primary" @click="startCamera" :disabled="running">Start camera</button>
+          <button @click="stopCamera" :disabled="!running">Stop</button>
+        </div>
+        <div class="video-shell">
+          <video id="preview" autoplay playsinline muted></video>
+          <canvas id="overlay"></canvas>
+          <div class="camera-guide">Keep one face inside the guide</div>
+        </div>
+        <div class="camera-footer"><span>Source: <b x-text="sourceLabel"></b></span><span>Sample rate: <b x-text="sampleRate+' fps'"></b></span></div>
+      </article>
+
+      <article class="card liveness-card">
+        <div class="card-title"><h2>Stream Liveness</h2><button class="help" @click="showHelp='liveness'">?</button></div>
+        <div class="metric big"><span>Liveness</span><strong x-text="analysis.liveness.status"></strong></div>
+        <div class="progress"><div :style="'width:'+Math.round(analysis.liveness.liveScore*100)+'%'" ></div></div>
+        <div class="stats"><div><span>Live score</span><b x-text="analysis.liveness.liveScore.toFixed(3)"></b></div><div><span>Temporal motion</span><b x-text="analysis.liveness.temporalMotion.toFixed(3)"></b></div><div><span>Frames</span><b x-text="analysis.liveness.acceptedFrames+'/'+analysis.liveness.requiredFrames"></b></div></div>
+        <div class="instruction" x-text="analysis.liveness.instruction"></div>
+        <div class="metric"><span>Face</span><strong x-text="analysis.detection.faceDetected ? 'DETECTED' : 'NOT DETECTED'"></strong></div>
+        <div class="metric"><span>Confidence</span><strong x-text="analysis.detection.confidence.toFixed(3)"></strong></div>
+      </article>
+    </section>
+
+    <section class="grid lower">
+      <article class="card action-card">
+        <div class="card-title"><h2>Identity Flow</h2><button class="help" @click="showHelp='identity'">?</button></div>
+        <label>User ID<input x-model="userId" placeholder="user-123" /></label>
+        <div class="action-row"><button class="primary" @click="enroll">Enroll current face</button><button class="secondary" @click="verify">Verify current face</button></div>
+        <div class="result" x-show="result"><pre x-text="JSON.stringify(result,null,2)"></pre></div>
+      </article>
+      <article class="card lab-card">
+        <div class="card-title"><h2>Model / Runtime</h2><button class="help" @click="showHelp='models'">?</button></div>
+        <div class="metric"><span>Detector</span><strong>YuNet</strong></div>
+        <div class="metric"><span>Recognition</span><strong>ArcFace 512</strong></div>
+        <div class="metric"><span>Anti-spoof</span><strong>MiniFASNetV2</strong></div>
+        <div class="metric"><span>Embedding dimension</span><strong>512</strong></div>
+        <div class="metric"><span>Server</span><strong x-text="serverUrl"></strong></div>
+      </article>
+    </section>
+
+    <div class="help-modal" x-show="showHelp" x-cloak @click.self="showHelp=null">
+      <div class="modal">
+        <button class="close" @click="showHelp=null">×</button>
+        <template x-if="showHelp==='camera'"><div><h3>Camera</h3><p>The browser obtains frames from any Windows camera visible through the MediaDevices API. The green box is only a guide; the actual face box comes from the detector.</p></div></template>
+        <template x-if="showHelp==='liveness'"><div><h3>Liveness</h3><p>The simulator combines MiniFASNetV2 per-frame anti-spoofing with a temporal movement challenge. This is for development and model comparison, not a production-certified PAD control.</p></div></template>
+        <template x-if="showHelp==='identity'"><div><h3>Identity flow</h3><p>After liveness passes, the simulator generates the 512-D embedding locally and sends that vector to the independent biometric service, matching the eventual mobile-app boundary.</p></div></template>
+        <template x-if="showHelp==='models'"><div><h3>Models</h3><p>All model adapters are replaceable. Add additional detectors, recognizers, liveness engines and similarity strategies without rewriting the controller.</p></div></template>
+      </div>
+    </div>
+  </main>
+  <script src="/js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>3.5.14</version>
+        <relativePath/>
+    </parent>
+
+    <groupId>com.isc</groupId>
+    <artifactId>face-biometric-lab</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+    <packaging>pom</packaging>
+
+    <name>face-biometric-lab</name>
+    <description>Windows webcam face biometric client simulator and independent biometric verification service</description>
+
+    <modules>
+        <module>face-client-simulator</module>
+        <module>face-biometric-service</module>
+    </modules>
+
+    <properties>
+        <java.version>21</java.version>
+        <onnxruntime.version>1.25.0</onnxruntime.version>
+        <opencv.version>4.9.0-0</opencv.version>
+        <springdoc.version>2.9.1</springdoc.version>
+    </properties>
+</project>

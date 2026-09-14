@@ -1,0 +1,8 @@
+biometric:
+  repository-type: oracle
+spring:
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: false
+    baseline-version: 0

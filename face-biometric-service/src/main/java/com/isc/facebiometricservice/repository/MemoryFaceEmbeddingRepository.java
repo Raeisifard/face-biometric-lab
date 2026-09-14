@@ -1,0 +1,16 @@
+package com.isc.facebiometricservice.repository;
+
+import com.isc.facebiometricservice.domain.FaceEmbedding;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.stereotype.Repository;
+import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
+
+@Repository
+@ConditionalOnProperty(name="biometric.repository-type", havingValue="memory", matchIfMissing=true)
+public class MemoryFaceEmbeddingRepository implements FaceEmbeddingRepository {
+    private final ConcurrentHashMap<String,FaceEmbedding> store=new ConcurrentHashMap<>();
+    private String key(String u,String m,String v){return u+"|"+m+"|"+v;}
+    public void save(String userId,FaceEmbedding embedding){store.put(key(userId,embedding.modelId(),embedding.modelVersion()),embedding);}
+    public Optional<FaceEmbedding> find(String userId,String modelId,String modelVersion){return Optional.ofNullable(store.get(key(userId,modelId,modelVersion)));}
+}

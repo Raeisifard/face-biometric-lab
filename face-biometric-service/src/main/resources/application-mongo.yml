@@ -1,0 +1,6 @@
+biometric:
+  repository-type: mongo
+
+spring:
+  autoconfigure:
+    exclude: []
