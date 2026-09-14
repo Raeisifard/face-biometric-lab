@@ -1,48 +1,53 @@
 function simulatorApp(){
   return {
     cameras:[],deviceId:'',stream:null,running:false,sessionId:null,userId:'user-123',serverUrl:'http://localhost:8090',sampleRate:4,sourceLabel:'Camera',showHelp:null,
-    timer:null,
+    timer:null,busy:false,serverStatus:'UNKNOWN',lastFrameAt:null,lastError:null,
     state:{status:'IDLE'},
     analysis:{detection:{faceDetected:false,confidence:0,box:null},liveness:{status:'NO_FACE',liveScore:0,temporalMotion:0,acceptedFrames:0,requiredFrames:12,instruction:'Start the camera.',frameLooksLive:false}},
     result:null,
-    async init(){ await this.refreshCameras(); },
+    get canVerify(){return !!(this.running&&this.sessionId&&!this.busy&&this.analysis?.liveness?.frameLooksLive&&this.userId?.trim())},
+    get canEnroll(){return this.canVerify},
     statusClass(){return this.analysis.liveness.frameLooksLive?'status-live':(this.analysis.liveness.status==='SUSPECTED_SPOOF'?'status-bad':'')},
+    actionReason(){
+      if(!this.running)return 'Start the camera first.';
+      if(!this.sessionId)return 'No simulator session is active.';
+      if(!this.userId?.trim())return 'Enter a User ID.';
+      if(this.busy)return 'An operation is already running.';
+      if(!this.analysis.liveness.frameLooksLive)return `Liveness is not ready: ${this.analysis.liveness.status}`;
+      return 'Ready';
+    },
+    async init(){console.info('[SIM][UI] Initializing simulator');await this.refreshCameras();await this.checkServer()},
     async refreshCameras(){
-      try{
-        const temp=await navigator.mediaDevices.getUserMedia({video:true,audio:false}); temp.getTracks().forEach(t=>t.stop());
-        const devices=await navigator.mediaDevices.enumerateDevices();
-        this.cameras=devices.filter(d=>d.kind==='videoinput');
-        if(!this.deviceId && this.cameras.length)this.deviceId=this.cameras[0].deviceId;
-      }catch(e){this.state.status='CAMERA_PERMISSION_REQUIRED';}
+      try{console.debug('[SIM][CAMERA] Requesting camera permission');const temp=await navigator.mediaDevices.getUserMedia({video:true,audio:false});temp.getTracks().forEach(t=>t.stop());const devices=await navigator.mediaDevices.enumerateDevices();this.cameras=devices.filter(d=>d.kind==='videoinput');if(!this.deviceId&&this.cameras.length)this.deviceId=this.cameras[0].deviceId;console.info('[SIM][CAMERA] Cameras found:',this.cameras.length)}
+      catch(e){console.error('[SIM][CAMERA] Permission/device error',e);this.state.status='CAMERA_PERMISSION_REQUIRED';this.lastError=e.message}
+    },
+    async checkServer(){
+      try{console.info('[SIM][SERVER] Checking simulator -> biometric-service connection',this.serverUrl);const resp=await fetch('/api/v1/simulator/server-status',{cache:'no-store'});const data=await this.readJson(resp);this.serverStatus=resp.ok&&data.reachable?'UP':'DOWN';console.info('[SIM][SERVER] Status',data)}
+      catch(e){this.serverStatus='DOWN';this.lastError=e.message;console.error('[SIM][SERVER] Status check failed',e)}
     },
     async startCamera(){
-      if(this.stream) this.stopCamera();
+      if(this.stream)this.stopCamera();
       const constraints={video:this.deviceId?{deviceId:{exact:this.deviceId},width:{ideal:1280},height:{ideal:720},frameRate:{ideal:15,max:30}}:{width:{ideal:1280},height:{ideal:720}},audio:false};
-      try{
-        this.stream=await navigator.mediaDevices.getUserMedia(constraints); const video=document.getElementById('preview'); video.srcObject=this.stream; await video.play();
-        const s=await fetch('/api/v1/simulator/sessions',{method:'POST'}); const j=await s.json(); this.sessionId=j.sessionId; this.running=true; this.state.status='RUNNING';
-        this.timer=setInterval(()=>this.sampleFrame(),1000/this.sampleRate);
-      }catch(e){this.state.status='CAMERA_ERROR';alert(e.message);}
+      try{console.info('[SIM][CAMERA] Starting camera');this.stream=await navigator.mediaDevices.getUserMedia(constraints);const video=document.getElementById('preview');video.srcObject=this.stream;await video.play();console.info('[SIM][SESSION] Creating processing session');const s=await fetch('/api/v1/simulator/sessions',{method:'POST'});const j=await this.readJson(s);if(!s.ok)throw new Error(j.error||`Session creation failed (${s.status})`);this.sessionId=j.sessionId;this.running=true;this.state.status='RUNNING';this.lastError=null;console.info('[SIM][SESSION] Session created',this.sessionId);this.timer=setInterval(()=>this.sampleFrame(),1000/this.sampleRate)}
+      catch(e){console.error('[SIM][CAMERA/SESSION] Start failed',e);this.state.status='CAMERA_ERROR';this.lastError=e.message;alert(e.message)}
     },
-    stopCamera(){if(this.timer)clearInterval(this.timer);this.timer=null;if(this.stream){this.stream.getTracks().forEach(t=>t.stop());this.stream=null}this.running=false;this.state.status='STOPPED'},
+    async stopCamera(){if(this.timer)clearInterval(this.timer);this.timer=null;if(this.stream){this.stream.getTracks().forEach(t=>t.stop());this.stream=null}if(this.sessionId){try{await fetch('/api/v1/simulator/sessions/'+encodeURIComponent(this.sessionId),{method:'DELETE'});console.info('[SIM][SESSION] Session deleted',this.sessionId)}catch(e){console.warn('[SIM][SESSION] Delete failed',e)}}this.sessionId=null;this.running=false;this.state.status='STOPPED';this.analysis.liveness.frameLooksLive=false},
     async sampleFrame(){
-      if(!this.running)return; const video=document.getElementById('preview'); if(video.readyState<2)return;
-      const canvas=document.createElement('canvas');canvas.width=640;canvas.height=360;const ctx=canvas.getContext('2d');ctx.drawImage(video,0,0,640,360);
-      const blob=await new Promise(r=>canvas.toBlob(r,'image/jpeg',0.72)); const fd=new FormData();fd.append('image',blob,'frame.jpg');
-      try{const resp=await fetch('/api/v1/simulator/frames?sessionId='+encodeURIComponent(this.sessionId),{method:'POST',body:fd});const data=await resp.json();if(resp.ok){this.analysis=data;this.drawOverlay(data)}}catch(e){this.state.status='FRAME_ERROR'}
+      if(!this.running||!this.sessionId)return;const video=document.getElementById('preview');if(video.readyState<2)return;const canvas=document.createElement('canvas');canvas.width=640;canvas.height=360;canvas.getContext('2d').drawImage(video,0,0,640,360);const blob=await new Promise(r=>canvas.toBlob(r,'image/jpeg',0.72));if(!blob)return;const fd=new FormData();fd.append('image',blob,'frame.jpg');
+      try{const resp=await fetch('/api/v1/simulator/frames?sessionId='+encodeURIComponent(this.sessionId),{method:'POST',body:fd});const data=await this.readJson(resp);if(!resp.ok)throw new Error(data.message||data.error||`Frame processing failed (${resp.status})`);this.analysis=data;this.lastFrameAt=new Date().toLocaleTimeString();this.drawOverlay(data);console.debug('[SIM][FRAME]',{face:data.detection?.faceDetected,liveness:data.liveness?.status,live:data.liveness?.frameLooksLive,frames:data.liveness?.acceptedFrames})}
+      catch(e){this.state.status='FRAME_ERROR';this.lastError=e.message;console.error('[SIM][FRAME] Processing failed',e)}
     },
-    drawOverlay(data){
-      const c=document.getElementById('overlay');const v=document.getElementById('preview');if(!v.videoWidth)return; c.width=v.videoWidth;c.height=v.videoHeight;const x=c.getContext('2d');x.clearRect(0,0,c.width,c.height);
-      if(data.detection&&data.detection.box){const b=data.detection.box;const sx=c.width/640,sy=c.height/360;x.strokeStyle=data.liveness.frameLooksLive?'#22c55e':'#f59e0b';x.lineWidth=4;x.strokeRect(b.x*sx,b.y*sy,b.width*sx,b.height*sy);}
-    },
+    drawOverlay(data){const c=document.getElementById('overlay');const v=document.getElementById('preview');if(!v.videoWidth)return;c.width=v.videoWidth;c.height=v.videoHeight;const x=c.getContext('2d');x.clearRect(0,0,c.width,c.height);if(data.detection&&data.detection.box){const b=data.detection.box;const sx=c.width/640,sy=c.height/360;x.strokeStyle=data.liveness.frameLooksLive?'#22c55e':'#f59e0b';x.lineWidth=4;x.strokeRect(b.x*sx,b.y*sy,b.width*sx,b.height*sy)}},
     async enroll(){this.result=await this.captureAction('enroll')},
     async verify(){this.result=await this.captureAction('verify')},
     async captureAction(action){
-      if(!this.sessionId){return {error:'Start camera first'}}
-      if(!this.analysis.liveness.frameLooksLive){return {error:'Liveness has not passed',status:this.analysis.liveness.status}}
-      const video=document.getElementById('preview');const c=document.createElement('canvas');c.width=640;c.height=360;c.getContext('2d').drawImage(video,0,0,640,360);const blob=await new Promise(r=>c.toBlob(r,'image/jpeg',0.9));const fd=new FormData();fd.append('image',blob,'capture.jpg');
-      try{const resp=await fetch('/api/v1/simulator/'+action+'?sessionId='+encodeURIComponent(this.sessionId)+'&userId='+encodeURIComponent(this.userId),{method:'POST',body:fd});return await resp.json()}catch(e){return {error:e.message}}
-    }
+      console.info(`[SIM][${action.toUpperCase()}] Button clicked`,{canVerify:this.canVerify,reason:this.actionReason(),userId:this.userId,sessionId:this.sessionId});
+      if(!this.running||!this.sessionId)return{error:'Start camera first'};if(!this.userId?.trim())return{error:'User ID is required'};if(!this.analysis.liveness.frameLooksLive)return{error:'Liveness has not passed',status:this.analysis.liveness.status};const video=document.getElementById('preview');if(video.readyState<2)return{error:'Camera frame is not ready'};
+      const c=document.createElement('canvas');c.width=640;c.height=360;c.getContext('2d').drawImage(video,0,0,640,360);const blob=await new Promise(r=>c.toBlob(r,'image/jpeg',0.9));if(!blob)return{error:'Could not capture image'};const fd=new FormData();fd.append('image',blob,'capture.jpg');this.busy=true;this.result=null;
+      try{console.info(`[SIM][${action.toUpperCase()}] Sending capture to simulator backend`);const resp=await fetch('/api/v1/simulator/'+action+'?sessionId='+encodeURIComponent(this.sessionId)+'&userId='+encodeURIComponent(this.userId.trim()),{method:'POST',body:fd});const data=await this.readJson(resp);console.info(`[SIM][${action.toUpperCase()}] Backend response`,{httpStatus:resp.status,data});if(!resp.ok)return{error:data.message||data.error||`Request failed (${resp.status})`,details:data};return data}
+      catch(e){console.error(`[SIM][${action.toUpperCase()}] Request failed`,e);return{error:e.message}}finally{this.busy=false}
+    },
+    async readJson(resp){const text=await resp.text();try{return text?JSON.parse(text):{}}catch(e){return{error:text||`HTTP ${resp.status}`}}}
   }
 }
 document.addEventListener('alpine:init',()=>{});

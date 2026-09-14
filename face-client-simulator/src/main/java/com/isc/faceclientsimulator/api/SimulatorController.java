@@ -4,6 +4,8 @@ import com.isc.faceclientsimulator.domain.FaceEmbedding;
 import com.isc.faceclientsimulator.service.BiometricFrameProcessor;
 import com.isc.faceclientsimulator.client.BiometricServerClient;
 import com.isc.faceclientsimulator.client.ServerVerifyResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
@@ -15,6 +17,7 @@ import java.util.concurrent.ConcurrentHashMap;
 @RestController
 @RequestMapping("/api/v1/simulator")
 public class SimulatorController {
+    private static final Logger log = LoggerFactory.getLogger(SimulatorController.class);
     private final BiometricFrameProcessor processor;
     private final BiometricServerClient serverClient;
     private final ConcurrentHashMap<String,Boolean> sessions = new ConcurrentHashMap<>();
@@ -23,43 +26,60 @@ public class SimulatorController {
 
     @GetMapping("/models")
     public ModelsResponse models() {
+        log.info("[SIM] Model information requested");
         return new ModelsResponse("YuNet", "ArcFace/InsightFace w600k_r50", "MiniFASNetV2", 512);
+    }
+
+    @GetMapping("/server-status")
+    public ServerStatusResponse serverStatus() {
+        return serverClient.health();
     }
 
     @PostMapping("/sessions")
     public SessionResponse createSession() {
-        String id=UUID.randomUUID().toString(); sessions.put(id,true); return new SessionResponse(id);
+        String id=UUID.randomUUID().toString(); sessions.put(id,true);
+        log.info("[SIM] Created processing session {}", id);
+        return new SessionResponse(id);
     }
 
     @DeleteMapping("/sessions/{sessionId}")
-    public void delete(@PathVariable String sessionId){sessions.remove(sessionId); processor.resetSession(sessionId);}
+    public void delete(@PathVariable String sessionId){sessions.remove(sessionId); processor.resetSession(sessionId); log.info("[SIM] Deleted processing session {}",sessionId);}
 
     @PostMapping(value="/frames",consumes=MediaType.MULTIPART_FORM_DATA_VALUE)
     public Object frame(@RequestParam String sessionId,@RequestPart("image") MultipartFile image) throws Exception {
         requireSession(sessionId); requireImage(image);
-        return processor.analyze(sessionId,image.getBytes());
+        var result=processor.analyze(sessionId,image.getBytes());
+        log.debug("[SIM] Frame session={} face={} liveness={} live={} frames={}",sessionId,result.detection().faceDetected(),result.liveness().status(),result.liveness().frameLooksLive(),result.liveness().acceptedFrames());
+        return result;
     }
 
     @PostMapping(value="/embedding",consumes=MediaType.MULTIPART_FORM_DATA_VALUE)
     public FaceEmbeddingResponse embedding(@RequestPart("image") MultipartFile image) throws Exception {
         requireImage(image); FaceEmbedding e=processor.generateEmbedding(image.getBytes());
+        log.info("[SIM] Generated embedding model={} version={} dimension={}",e.modelId(),e.modelVersion(),e.dimension());
         return new FaceEmbeddingResponse(e.modelId(),e.modelVersion(),e.dimension(),e.normalized(),e.values());
     }
 
     @PostMapping(value="/enroll",consumes=MediaType.MULTIPART_FORM_DATA_VALUE)
     public ServerVerifyResponse enroll(@RequestParam String sessionId,@RequestParam String userId,@RequestPart("image") MultipartFile image) throws Exception {
         requireSession(sessionId); requireImage(image);
+        log.info("[SIM] Enroll requested user={} session={}",userId,sessionId);
         var analysis=processor.analyze(sessionId,image.getBytes());
         if(!analysis.liveness().frameLooksLive()) throw new IllegalStateException("Liveness has not passed: "+analysis.liveness().status());
-        return serverClient.enroll(userId,processor.generateEmbedding(image.getBytes()));
+        FaceEmbedding embedding=processor.generateEmbedding(image.getBytes());
+        log.info("[SIM] Calling biometric service enroll user={} model={} dimension={}",userId,embedding.modelId(),embedding.dimension());
+        return serverClient.enroll(userId,embedding);
     }
 
     @PostMapping(value="/verify",consumes=MediaType.MULTIPART_FORM_DATA_VALUE)
     public ServerVerifyResponse verify(@RequestParam String sessionId,@RequestParam String userId,@RequestPart("image") MultipartFile image) throws Exception {
         requireSession(sessionId); requireImage(image);
+        log.info("[SIM] Verify requested user={} session={}",userId,sessionId);
         var analysis=processor.analyze(sessionId,image.getBytes());
         if(!analysis.liveness().frameLooksLive()) throw new IllegalStateException("Liveness has not passed: "+analysis.liveness().status());
-        return serverClient.verify(userId,processor.generateEmbedding(image.getBytes()));
+        FaceEmbedding embedding=processor.generateEmbedding(image.getBytes());
+        log.info("[SIM] Calling biometric service verify user={} model={} dimension={}",userId,embedding.modelId(),embedding.dimension());
+        return serverClient.verify(userId,embedding);
     }
 
     private void requireSession(String id){if(!sessions.containsKey(id))throw new IllegalArgumentException("Unknown session: "+id);}
@@ -68,4 +88,5 @@ public class SimulatorController {
     public record SessionResponse(String sessionId){}
     public record ModelsResponse(String detector,String recognition,String liveness,int embeddingDimension){}
     public record FaceEmbeddingResponse(String modelId,String modelVersion,int dimension,boolean normalized,float[] embedding){}
+    public record ServerStatusResponse(boolean reachable,String status,String message){}
 }

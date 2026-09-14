@@ -6,6 +6,8 @@ import com.isc.facebiometricservice.service.FaceMatchingService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -13,18 +15,19 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/v1/biometric")
 @Validated
 public class BiometricController {
+    private static final Logger log = LoggerFactory.getLogger(BiometricController.class);
     private final FaceMatchingService service; private final BiometricProperties properties;
     public BiometricController(FaceMatchingService service,BiometricProperties properties){this.service=service;this.properties=properties;}
 
     @PostMapping("/enroll-embedding")
     public VerifyResponse enroll(@Valid @RequestBody EmbeddingPayload p){
-        require(p); FaceEmbedding e=new FaceEmbedding(p.embedding(),p.dimension(),p.modelId(),p.modelVersion(),p.normalized()); service.enroll(p.userId(),e);
+        require(p); log.info("[BIOMETRIC] Enroll user={} model={} version={} dimension={}",p.userId(),p.modelId(),p.modelVersion(),p.dimension()); FaceEmbedding e=new FaceEmbedding(p.embedding(),p.dimension(),p.modelId(),p.modelVersion(),p.normalized()); service.enroll(p.userId(),e);
         return new VerifyResponse(p.userId(),true,1.0,properties.threshold(),"ENROLL",e.modelId(),e.modelVersion(),0);
     }
 
     @PostMapping("/verify-embedding")
     public VerifyResponse verify(@Valid @RequestBody EmbeddingPayload p){
-        require(p); FaceEmbedding e=new FaceEmbedding(p.embedding(),p.dimension(),p.modelId(),p.modelVersion(),p.normalized()); var r=service.verify(p.userId(),e);
+        require(p); log.info("[BIOMETRIC] Verify user={} model={} version={} dimension={}",p.userId(),p.modelId(),p.modelVersion(),p.dimension()); FaceEmbedding e=new FaceEmbedding(p.embedding(),p.dimension(),p.modelId(),p.modelVersion(),p.normalized()); var r=service.verify(p.userId(),e); log.info("[BIOMETRIC] Verify result user={} matched={} similarity={} threshold={}",p.userId(),r.matched(),r.similarity(),r.threshold());
         return new VerifyResponse(p.userId(),r.matched(),r.similarity(),r.threshold(),r.algorithm(),e.modelId(),e.modelVersion(),r.processingTimeMs());
     }
 

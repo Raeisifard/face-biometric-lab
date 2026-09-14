@@ -28,3 +28,9 @@ management:
     web:
       exposure:
         include: health,info
+
+logging:
+  level:
+    com.isc.faceclientsimulator: INFO
+    com.isc.faceclientsimulator.api.SimulatorController: INFO
+    com.isc.faceclientsimulator.client.BiometricServerClient: INFO
