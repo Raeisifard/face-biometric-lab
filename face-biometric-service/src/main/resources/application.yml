@@ -1,8 +1,13 @@
+#import:
+#  - classpath:biometric-embeddings.yml
 server:
   port: 8090
 spring:
   application:
     name: face-biometric-service
+  config:
+    import:
+      - optional:classpath:biometric-embeddings.yml
   flyway:
     enabled: false
   autoconfigure:
@@ -11,12 +16,12 @@ spring:
       - org.springframework.boot.autoconfigure.data.mongo.MongoDataAutoConfiguration
 
 biometric:
-  repository-type: memory
+  repository-type: property #memory
   model-id: arcface-512
   model-version: w600k-r50
   dimension: 512
   algorithm: COSINE
-  threshold: 0.50
+  threshold: 0.90
   normalized-required: true
   oracle:
     url: ${BIOMETRIC_ORACLE_URL:jdbc:oracle:thin:@172.16.88.115:1521/XE}

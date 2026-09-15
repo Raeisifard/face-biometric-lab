@@ -11,9 +11,9 @@ spring:
 
 simulator:
   server-base-url: ${BIOMETRIC_SERVER_URL:http://localhost:8090}
-  detector-model-path: ${FACE_DETECTOR_MODEL:../models/detector/face_detection_yunet_2023mar.onnx}
-  recognition-model-path: ${FACE_RECOGNITION_MODEL:../models/recognition/w600k_r50.onnx}
-  liveness-model-path: ${FACE_LIVENESS_MODEL:../models/liveness/2.7_80x80_MiniFASNetV2.onnx}
+  detector-model-path: ${FACE_DETECTOR_MODEL:./models/detector/face_detection_yunet_2023mar.onnx}
+  recognition-model-path: ${FACE_RECOGNITION_MODEL:./models/recognition/w600k_r50.onnx}
+  liveness-model-path: ${FACE_LIVENESS_MODEL:./models/liveness/2.7_80x80_MiniFASNetV2.onnx}
   recognition-model-id: arcface-512
   recognition-model-version: w600k-r50
   detection-threshold: 0.75
