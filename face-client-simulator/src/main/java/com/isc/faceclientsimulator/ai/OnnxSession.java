@@ -1,8 +1,8 @@
 package com.isc.faceclientsimulator.ai;
 
 import ai.onnxruntime.*;
+
 import java.nio.FloatBuffer;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
 
@@ -11,19 +11,26 @@ public final class OnnxSession implements AutoCloseable {
     private final OrtSession session;
     private final String inputName;
     private final String outputName;
+    private final Path resolvedModelPath;
 
     public OnnxSession(String modelPath) {
+        this(null, modelPath);
+    }
+
+    public OnnxSession(String modelsDir, String modelPath) {
+        this.resolvedModelPath = ModelPathResolver.resolve(modelsDir, modelPath);
         try {
-            Path p = Path.of(modelPath);
-            if (!Files.isRegularFile(p)) throw new IllegalStateException("ONNX model not found: " + p.toAbsolutePath());
             environment = OrtEnvironment.getEnvironment();
             OrtSession.SessionOptions options = new OrtSession.SessionOptions();
-            session = environment.createSession(p.toString(), options);
-            if (session.getInputNames().isEmpty() || session.getOutputNames().isEmpty()) throw new IllegalStateException("ONNX model has no input/output");
+            session = environment.createSession(resolvedModelPath.toString(), options);
+            if (session.getInputNames().isEmpty() || session.getOutputNames().isEmpty()) {
+                throw new IllegalStateException("ONNX model has no input/output: " + resolvedModelPath);
+            }
             inputName = session.getInputNames().iterator().next();
             outputName = session.getOutputNames().iterator().next();
         } catch (OrtException e) {
-            throw new IllegalStateException("Unable to initialize ONNX Runtime model: " + modelPath, e);
+            throw new IllegalStateException(
+                    "Unable to initialize ONNX Runtime model: " + resolvedModelPath, e);
         }
     }
 
@@ -35,11 +42,20 @@ public final class OnnxSession implements AutoCloseable {
             if (value instanceof float[] vector) return vector;
             throw new IllegalStateException("Unsupported ONNX output type: " + value.getClass());
         } catch (OrtException e) {
-            throw new IllegalStateException("ONNX inference failed for output " + outputName, e);
+            throw new IllegalStateException("ONNX inference failed for " + resolvedModelPath + ", output " + outputName, e);
         }
     }
 
-    public OrtSession session() { return session; }
+    public OrtSession session() {
+        return session;
+    }
 
-    @Override public void close() throws Exception { session.close(); }
+    public Path resolvedModelPath() {
+        return resolvedModelPath;
+    }
+
+    @Override
+    public void close() throws Exception {
+        session.close();
+    }
 }
