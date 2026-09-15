@@ -44,16 +44,26 @@ public class ArcFaceOnnxEmbeddingModel {
                 detection.landmarks().leftEye().x(), detection.landmarks().leftEye().y(),
                 detection.landmarks().nose().x(), detection.landmarks().nose().y()
         };
-        try (MatOfPoint2f srcPts = new MatOfPoint2f(
-                new Point(src[0], src[1]), new Point(src[2], src[3]), new Point(src[4], src[5]));
-             MatOfPoint2f dstPts = new MatOfPoint2f(
-                     new Point(TARGET[0], TARGET[1]), new Point(TARGET[2], TARGET[3]), new Point(TARGET[4], TARGET[5]))) {
-            Mat transform = Imgproc.getAffineTransform(srcPts, dstPts);
-            try {
-                Mat out = new Mat(112, 112, CvType.CV_8UC3);
-                Imgproc.warpAffine(frame, out, transform, new Size(112, 112));
-                return out;
-            } finally {
+
+        MatOfPoint2f srcPts = new MatOfPoint2f(
+                new Point(src[0], src[1]),
+                new Point(src[2], src[3]),
+                new Point(src[4], src[5]));
+        MatOfPoint2f dstPts = new MatOfPoint2f(
+                new Point(TARGET[0], TARGET[1]),
+                new Point(TARGET[2], TARGET[3]),
+                new Point(TARGET[4], TARGET[5]));
+
+        Mat transform = null;
+        try {
+            transform = Imgproc.getAffineTransform(srcPts, dstPts);
+            Mat out = new Mat(112, 112, CvType.CV_8UC3);
+            Imgproc.warpAffine(frame, out, transform, new Size(112, 112));
+            return out;
+        } finally {
+            srcPts.release();
+            dstPts.release();
+            if (transform != null) {
                 transform.release();
             }
         }
