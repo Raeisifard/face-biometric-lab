@@ -5,6 +5,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties(prefix = "simulator")
 public record SimulatorProperties(
         String serverBaseUrl,
+        String modelsDir,
         String detectorModelPath,
         String recognitionModelPath,
         String livenessModelPath,
