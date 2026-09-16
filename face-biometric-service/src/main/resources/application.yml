@@ -18,7 +18,7 @@ biometric:
   model-path: ${BIOMETRIC_MODEL_PATH:models/recognition/w600k_r50.onnx}
   dimension: 512
   algorithm: COSINE
-  threshold: 0.75
+  threshold: 0.65
   normalized-required: true
   oracle.url: ${BIOMETRIC_ORACLE_URL:}
   oracle.username: ${BIOMETRIC_ORACLE_USERNAME:}
