@@ -2,13 +2,16 @@ package com.isc.facebiometricservice.videoverification;
 
 import com.isc.facebiometricservice.biometric.CosineFaceMatcher;
 import com.isc.facebiometricservice.config.BiometricProperties;
-import com.isc.facebiometricservice.config.VideoVerificationProperties;
+import com.isc.facebiometricservice.domain.FaceEmbedding;
 import nu.pattern.OpenCV;
 import org.junit.jupiter.api.Test;
 
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Comparator;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -16,11 +19,14 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Diagnostic test for the server-side MiniFASNetV2 liveness pipeline.
+ * Diagnostic test for the server-side MiniFASNetV2 liveness and ArcFace
+ * 1:1 verification pipeline.
  *
  * The test reads an already stored WebM clip from video-captures instead of
- * going through the HTTP/UI flow. It intentionally stops at the liveness
- * stage by supplying an empty reference repository.
+ * going through the HTTP/UI flow. The reference embedding is loaded from
+ * the same biometric-embeddings.yml resource used by the property-backed
+ * reference data, so the test exercises the real recognition and cosine
+ * comparison path instead of deliberately stopping at liveness.
  *
  * Override the clip with:
  *   -Dbiometric.test.video=C:/path/to/clip.webm
@@ -28,6 +34,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class StoredVideoLivenessTest {
 
     private static final int EMBEDDING_DIMENSION = 512;
+    private static final String REFERENCE_RESOURCE = "biometric-embeddings.yml";
+    private static final String REFERENCE_ID = "user-123";
+    private static final String MODEL_ID = "arcface-512";
+    private static final String MODEL_VERSION = "w600k-r50";
 
     static {
         // This test constructs VideoClipDecoder directly, without starting
@@ -37,9 +47,26 @@ class StoredVideoLivenessTest {
     }
 
     @Test
-    void evaluatesLatestStoredVideoForLiveness() {
+    void evaluatesLatestStoredVideoForLivenessAndRecognition() {
         Path video = configuredVideo();
         assertTrue(Files.isRegularFile(video), "Stored video does not exist: " + video);
+
+        BiometricProperties biometricProperties = new BiometricProperties(
+                "property",
+                MODEL_ID,
+                MODEL_VERSION,
+                "models/recognition/w600k_r50.onnx",
+                EMBEDDING_DIMENSION,
+                0.90,
+                "COSINE",
+                true,
+                new BiometricProperties.Detector(false, "", 0.9),
+                new BiometricProperties.Liveness(false, "", 0.5),
+                new BiometricProperties.Oracle("", "", ""),
+                new BiometricProperties.Mongo("", "", ""),
+                new BiometricProperties.Cors("*"),
+                Map.of()
+        );
 
         VideoVerificationProperties videoProperties = new VideoVerificationProperties(
                 true,
@@ -60,23 +87,7 @@ class StoredVideoLivenessTest {
                 "video-captures"
         );
 
-        BiometricProperties biometricProperties = new BiometricProperties(
-                "property",
-                "arcface-512",
-                "w600k-r50",
-                "models/recognition/w600k_r50.onnx",
-                EMBEDDING_DIMENSION,
-                0.90,
-                "COSINE",
-                true,
-                new BiometricProperties.Detector(false, "", 0.9),
-                new BiometricProperties.Liveness(false, "", 0.5),
-                new BiometricProperties.Oracle("", "", ""),
-                new BiometricProperties.Mongo("", "", ""),
-                new BiometricProperties.Cors("*"),
-                Map.of()
-        );
-
+        FaceEmbedding reference = loadReferenceEmbedding();
         VideoClipDecoder decoder = new VideoClipDecoder(videoProperties);
         VideoClipDecoder.DecodedClip clip = decoder.decode(video, videoProperties.sampleFps());
 
@@ -85,31 +96,113 @@ class StoredVideoLivenessTest {
                     videoProperties,
                     biometricProperties,
                     new CosineFaceMatcher(),
-                    (referenceId, modelId, modelVersion) -> Optional.empty()
+                    (referenceId, modelId, modelVersion) ->
+                            REFERENCE_ID.equals(referenceId)
+                                    && MODEL_ID.equals(modelId)
+                                    && MODEL_VERSION.equals(modelVersion)
+                                    ? Optional.of(reference)
+                                    : Optional.empty()
             );
 
             VideoVerificationEngine.Outcome outcome = engine.verify(
                     "stored-video-liveness-test",
                     clip,
-                    "test-reference"
+                    REFERENCE_ID
             );
 
             assertNotNull(outcome);
             assertTrue(outcome.decodedFrames() > 0, "No frames were decoded");
             assertNotNull(outcome.livenessScore(), "Liveness score was not produced");
             assertTrue(Double.isFinite(outcome.livenessScore()), "Liveness score must be finite");
+            assertNotNull(outcome.similarity(), "Recognition similarity was not produced");
+            assertTrue(Double.isFinite(outcome.similarity()), "Recognition similarity must be finite");
+            assertTrue(outcome.recognitionFrames() > 0, "No recognition frames were selected");
 
             System.out.printf(
-                    "Stored video liveness test: video=%s, decodedFrames=%d, livenessScore=%.9f, result=%s, reasons=%s%n",
+                    "Stored video verification test: video=%s, referenceId=%s, decodedFrames=%d, recognitionFrames=%d, livenessScore=%.9f, similarity=%.9f, result=%s, reasons=%s%n",
                     video,
+                    REFERENCE_ID,
                     outcome.decodedFrames(),
+                    outcome.recognitionFrames(),
                     outcome.livenessScore(),
+                    outcome.similarity(),
                     outcome.result(),
                     outcome.reasons()
             );
         } finally {
             // VideoVerificationEngine.verify() releases decoded frame Mats.
         }
+    }
+
+    private FaceEmbedding loadReferenceEmbedding() {
+        String yaml;
+        try (InputStream input = Thread.currentThread().getContextClassLoader().getResourceAsStream(REFERENCE_RESOURCE)) {
+            if (input == null) {
+                throw new AssertionError("Reference embedding resource not found: " + REFERENCE_RESOURCE);
+            }
+            yaml = new String(input.readAllBytes(), StandardCharsets.UTF_8);
+        } catch (Exception e) {
+            throw new AssertionError("Could not read reference embedding resource: " + REFERENCE_RESOURCE, e);
+        }
+
+        List<Float> values = new java.util.ArrayList<>(EMBEDDING_DIMENSION);
+        boolean inUser = false;
+        boolean inEmbedding = false;
+        String modelId = null;
+        String modelVersion = null;
+        Integer dimension = null;
+        Boolean normalized = null;
+
+        for (String raw : yaml.split("\\R")) {
+            String line = raw.stripTrailing();
+            String trimmed = line.trim();
+
+            if (trimmed.equals(REFERENCE_ID + ":")) {
+                inUser = true;
+                continue;
+            }
+            if (!inUser) {
+                continue;
+            }
+            if (!line.isBlank() && !Character.isWhitespace(line.charAt(0))) {
+                break;
+            }
+            if (trimmed.startsWith("model-id:")) {
+                modelId = scalar(trimmed.substring("model-id:".length()));
+            } else if (trimmed.startsWith("model-version:")) {
+                modelVersion = scalar(trimmed.substring("model-version:".length()));
+            } else if (trimmed.startsWith("dimension:")) {
+                dimension = Integer.valueOf(scalar(trimmed.substring("dimension:".length())));
+            } else if (trimmed.startsWith("normalized:")) {
+                normalized = Boolean.valueOf(scalar(trimmed.substring("normalized:".length())));
+            } else if (trimmed.equals("embedding:")) {
+                inEmbedding = true;
+            } else if (inEmbedding && trimmed.startsWith("- ")) {
+                values.add(Float.valueOf(trimmed.substring(2).trim()));
+            }
+        }
+
+        assertTrue(inUser, "Reference id not found in " + REFERENCE_RESOURCE + ": " + REFERENCE_ID);
+        assertTrue(MODEL_ID.equals(modelId), "Unexpected reference model id: " + modelId);
+        assertTrue(MODEL_VERSION.equals(modelVersion), "Unexpected reference model version: " + modelVersion);
+        assertTrue(Integer.valueOf(EMBEDDING_DIMENSION).equals(dimension), "Unexpected reference dimension: " + dimension);
+        assertTrue(Boolean.TRUE.equals(normalized), "Reference embedding must be normalized");
+        assertTrue(values.size() == EMBEDDING_DIMENSION,
+                "Reference embedding must contain exactly " + EMBEDDING_DIMENSION + " values but contains " + values.size());
+
+        float[] embedding = new float[values.size()];
+        for (int i = 0; i < values.size(); i++) {
+            embedding[i] = values.get(i);
+        }
+        return new FaceEmbedding(embedding, EMBEDDING_DIMENSION, MODEL_ID, MODEL_VERSION, true);
+    }
+
+    private String scalar(String value) {
+        String result = value.trim();
+        if (result.startsWith("\"") && result.endsWith("\"")) {
+            return result.substring(1, result.length() - 1);
+        }
+        return result;
     }
 
     private Path configuredVideo() {
