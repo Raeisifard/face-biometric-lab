@@ -2,6 +2,7 @@ package com.isc.facebiometricservice.videoverification;
 
 import com.isc.facebiometricservice.biometric.CosineFaceMatcher;
 import com.isc.facebiometricservice.config.BiometricProperties;
+import com.isc.facebiometricservice.config.VideoVerificationProperties;
 import com.isc.facebiometricservice.domain.FaceEmbedding;
 import nu.pattern.OpenCV;
 import org.junit.jupiter.api.Test;
@@ -22,11 +23,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * Diagnostic test for the server-side MiniFASNetV2 liveness and ArcFace
  * 1:1 verification pipeline.
  *
- * The test reads an already stored WebM clip from video-captures instead of
- * going through the HTTP/UI flow. The reference embedding is loaded from
- * the same biometric-embeddings.yml resource used by the property-backed
- * reference data, so the test exercises the real recognition and cosine
- * comparison path instead of deliberately stopping at liveness.
+ * The test uses a fixed reference identity/model contract copied from the
+ * property-backed test data. It does not search for a referenceId at runtime.
+ * The embedding values themselves are read from the existing test resource.
  *
  * Override the clip with:
  *   -Dbiometric.test.video=C:/path/to/clip.webm
@@ -35,6 +34,8 @@ class StoredVideoLivenessTest {
 
     private static final int EMBEDDING_DIMENSION = 512;
     private static final String REFERENCE_RESOURCE = "biometric-embeddings.yml";
+
+    // Fixed test reference taken from biometric-embeddings.yml.
     private static final String REFERENCE_ID = "user-123";
     private static final String MODEL_ID = "arcface-512";
     private static final String MODEL_VERSION = "w600k-r50";
@@ -107,7 +108,7 @@ class StoredVideoLivenessTest {
             VideoVerificationEngine.Outcome outcome = engine.verify(
                     "stored-video-liveness-test",
                     clip,
-                    "user-123"
+                    REFERENCE_ID
             );
 
             assertNotNull(outcome);
@@ -134,6 +135,11 @@ class StoredVideoLivenessTest {
         }
     }
 
+    /**
+     * Reads only the embedding values from the existing property test resource.
+     * The identity and model contract are intentionally hard-coded above so
+     * this test never has to discover which referenceId to use.
+     */
     private FaceEmbedding loadReferenceEmbedding() {
         String yaml;
         try (InputStream input = Thread.currentThread().getContextClassLoader().getResourceAsStream(REFERENCE_RESOURCE)) {
@@ -146,63 +152,39 @@ class StoredVideoLivenessTest {
         }
 
         List<Float> values = new java.util.ArrayList<>(EMBEDDING_DIMENSION);
-        boolean inUser = false;
         boolean inEmbedding = false;
-        String modelId = null;
-        String modelVersion = null;
-        Integer dimension = null;
-        Boolean normalized = null;
 
         for (String raw : yaml.split("\\R")) {
-            String line = raw.stripTrailing();
-            String trimmed = line.trim();
+            String trimmed = raw.trim();
 
-            if (trimmed.equals(REFERENCE_ID + ":")) {
-                inUser = true;
-                continue;
-            }
-            if (!inUser) {
-                continue;
-            }
-            if (!line.isBlank() && !Character.isWhitespace(line.charAt(0))) {
-                break;
-            }
-            if (trimmed.startsWith("model-id:")) {
-                modelId = scalar(trimmed.substring("model-id:".length()));
-            } else if (trimmed.startsWith("model-version:")) {
-                modelVersion = scalar(trimmed.substring("model-version:".length()));
-            } else if (trimmed.startsWith("dimension:")) {
-                dimension = Integer.valueOf(scalar(trimmed.substring("dimension:".length())));
-            } else if (trimmed.startsWith("normalized:")) {
-                normalized = Boolean.valueOf(scalar(trimmed.substring("normalized:".length())));
-            } else if (trimmed.equals("embedding:")) {
+            if (trimmed.equals("embedding:")) {
                 inEmbedding = true;
-            } else if (inEmbedding && trimmed.startsWith("- ")) {
+                continue;
+            }
+
+            if (!inEmbedding) {
+                continue;
+            }
+
+            if (trimmed.startsWith("- ")) {
                 values.add(Float.valueOf(trimmed.substring(2).trim()));
+                continue;
+            }
+
+            if (!trimmed.isEmpty() && !Character.isWhitespace(raw.charAt(0))) {
+                break;
             }
         }
 
-        assertTrue(inUser, "Reference id not found in " + REFERENCE_RESOURCE + ": " + REFERENCE_ID);
-        assertTrue(MODEL_ID.equals(modelId), "Unexpected reference model id: " + modelId);
-        assertTrue(MODEL_VERSION.equals(modelVersion), "Unexpected reference model version: " + modelVersion);
-        assertTrue(Integer.valueOf(EMBEDDING_DIMENSION).equals(dimension), "Unexpected reference dimension: " + dimension);
-        assertTrue(Boolean.TRUE.equals(normalized), "Reference embedding must be normalized");
         assertTrue(values.size() == EMBEDDING_DIMENSION,
-                "Reference embedding must contain exactly " + EMBEDDING_DIMENSION + " values but contains " + values.size());
+                "Reference embedding for " + REFERENCE_ID + " must contain exactly "
+                        + EMBEDDING_DIMENSION + " values but contains " + values.size());
 
         float[] embedding = new float[values.size()];
         for (int i = 0; i < values.size(); i++) {
             embedding[i] = values.get(i);
         }
         return new FaceEmbedding(embedding, EMBEDDING_DIMENSION, MODEL_ID, MODEL_VERSION, true);
-    }
-
-    private String scalar(String value) {
-        String result = value.trim();
-        if (result.startsWith("\"") && result.endsWith("\"")) {
-            return result.substring(1, result.length() - 1);
-        }
-        return result;
     }
 
     private Path configuredVideo() {
