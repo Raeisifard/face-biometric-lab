@@ -107,7 +107,7 @@ class StoredVideoLivenessTest {
             VideoVerificationEngine.Outcome outcome = engine.verify(
                     "stored-video-liveness-test",
                     clip,
-                    REFERENCE_ID
+                    "user-123"
             );
 
             assertNotNull(outcome);

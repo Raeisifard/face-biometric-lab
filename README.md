@@ -101,3 +101,9 @@ Camera access is implemented with the browser `MediaDevices.getUserMedia()` API.
 ## Maven
 
 Use Maven 3.9+ from your local installation. A Maven Wrapper can be generated locally with `mvn -N wrapper:wrapper` when desired.
+
+### Commands
+````
+mvn -pl face-biometric-service -Dtest=StoredVideoLivenessTest test
+mvn -pl face-biometric-service "-Dtest=StoredVideoLivenessTest" "-Dbiometric.test.video=C:\behnam\java\face-biometric-lab\video-captures\user-123_20260916_155603_790.webm" test
+````
