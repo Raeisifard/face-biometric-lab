@@ -11,7 +11,6 @@ import java.util.Comparator;
 import java.util.Map;
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -111,9 +110,7 @@ class StoredVideoLivenessTest {
             return Path.of(configured).toAbsolutePath().normalize();
         }
 
-        Path directory = Path.of("video-captures").toAbsolutePath().normalize();
-        assertTrue(Files.isDirectory(directory), "Stored-video directory does not exist: " + directory);
-
+        Path directory = findStoredVideoDirectory();
         try (var files = Files.list(directory)) {
             return files
                     .filter(Files::isRegularFile)
@@ -123,6 +120,26 @@ class StoredVideoLivenessTest {
         } catch (Exception e) {
             throw new AssertionError("Could not inspect stored-video directory: " + directory, e);
         }
+    }
+
+    private Path findStoredVideoDirectory() {
+        Path workingDirectory = Path.of(".").toAbsolutePath().normalize();
+        Path[] candidates = {
+                workingDirectory.resolve("video-captures"),
+                workingDirectory.resolve("../video-captures").normalize(),
+                workingDirectory.resolve("../../video-captures").normalize()
+        };
+
+        for (Path candidate : candidates) {
+            if (Files.isDirectory(candidate)) {
+                return candidate;
+            }
+        }
+
+        throw new AssertionError(
+                "Stored-video directory does not exist. Checked: " + String.join(", ",
+                        java.util.Arrays.stream(candidates).map(Path::toString).toList())
+        );
     }
 
     private long lastModified(Path path) {
