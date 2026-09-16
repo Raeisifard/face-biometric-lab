@@ -1,6 +1,7 @@
 package com.isc.facebiometricservice.streaming;
 
 import com.isc.facebiometricservice.config.VideoVerificationProperties;
+import com.isc.facebiometricservice.util.ModelPathResolver;
 import org.opencv.core.Mat;
 import org.opencv.core.MatOfByte;
 import org.opencv.core.Size;
@@ -8,14 +9,12 @@ import org.opencv.objdetect.FaceDetectorYN;
 import org.opencv.imgcodecs.Imgcodecs;
 import org.springframework.stereotype.Component;
 
-import java.nio.file.Path;
-
 @Component
 public class OpenCvLiveFrameAnalyzer implements LiveFrameAnalyzer {
     private final FaceDetectorYN detector;
 
     public OpenCvLiveFrameAnalyzer(VideoVerificationProperties properties) {
-        Path model = Path.of(properties.detectorModelPath()).toAbsolutePath().normalize();
+        var model = ModelPathResolver.resolve(properties.detectorModelPath());
         detector = FaceDetectorYN.create(model.toString(), "", new Size(320, 320), 0.75f, 0.3f, 5000);
     }
 
