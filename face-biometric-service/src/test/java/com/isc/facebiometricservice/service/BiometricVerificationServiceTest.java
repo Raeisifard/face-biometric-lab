@@ -2,47 +2,76 @@ package com.isc.facebiometricservice.service;
 
 import com.isc.facebiometricservice.api.VerificationRequest;
 import com.isc.facebiometricservice.api.VerificationStatus;
+import com.isc.facebiometricservice.biometric.CosineFaceMatcher;
 import com.isc.facebiometricservice.biometric.FaceMatcher;
 import com.isc.facebiometricservice.biometric.ReferenceEmbeddingRepository;
 import com.isc.facebiometricservice.config.BiometricProperties;
 import com.isc.facebiometricservice.domain.FaceEmbedding;
 import org.junit.jupiter.api.Test;
-import java.util.*;
-import static org.junit.jupiter.api.Assertions.*;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Map;
+import java.util.Optional;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class BiometricVerificationServiceTest {
+    private static final int EMBEDDING_DIMENSION = 512;
+
     private final BiometricProperties properties = new BiometricProperties(
-            "property", "arcface-512", "w600k-r50", "models/test.onnx", 3, 0.80, "COSINE", true,
+            "property", "arcface-512", "w600k-r50", "models/test.onnx", EMBEDDING_DIMENSION,
+            0.80, "COSINE", true,
             new BiometricProperties.Detector(false, "", 0.9),
             new BiometricProperties.Liveness(false, "", 0.5),
             new BiometricProperties.Oracle("", "", ""), new BiometricProperties.Mongo("", "", ""),
             new BiometricProperties.Cors("*"), Map.of());
 
-    @Test void mapsAboveThresholdToMatch() {
+    @Test
+    void mapsAboveThresholdToMatch() {
+        float[] referenceValues = unitVector(0);
         ReferenceEmbeddingRepository repo = (id, model, version) -> Optional.of(
-                new FaceEmbedding(new float[]{1, 0, 0}, 3, model, version, true));
-        BiometricVerificationService service = new BiometricVerificationService(repo, new com.isc.facebiometricservice.biometric.CosineFaceMatcher(), properties);
-        var request = request(new float[]{1, 0, 0}, true);
-        assertEquals(VerificationStatus.MATCH, service.verify(request).result());
+                new FaceEmbedding(referenceValues, EMBEDDING_DIMENSION, model, version, true));
+        FaceMatcher matcher = new CosineFaceMatcher();
+        BiometricVerificationService service = new BiometricVerificationService(repo, matcher, properties);
+
+        assertEquals(VerificationStatus.MATCH, service.verify(request(referenceValues, true)).result());
     }
 
-    @Test void mapsBelowThresholdToNoMatch() {
+    @Test
+    void mapsBelowThresholdToNoMatch() {
+        float[] referenceValues = unitVector(0);
+        float[] probeValues = unitVector(1);
         ReferenceEmbeddingRepository repo = (id, model, version) -> Optional.of(
-                new FaceEmbedding(new float[]{1, 0, 0}, 3, model, version, true));
-        BiometricVerificationService service = new BiometricVerificationService(repo, new com.isc.facebiometricservice.biometric.CosineFaceMatcher(), properties);
-        assertEquals(VerificationStatus.NO_MATCH, service.verify(request(new float[]{0, 1, 0}, true)).result());
+                new FaceEmbedding(referenceValues, EMBEDDING_DIMENSION, model, version, true));
+        FaceMatcher matcher = new CosineFaceMatcher();
+        BiometricVerificationService service = new BiometricVerificationService(repo, matcher, properties);
+
+        assertEquals(VerificationStatus.NO_MATCH, service.verify(request(probeValues, true)).result());
     }
 
-    @Test void missingReferenceIsInconclusive() {
+    @Test
+    void missingReferenceIsInconclusive() {
         ReferenceEmbeddingRepository repo = (id, model, version) -> Optional.empty();
-        BiometricVerificationService service = new BiometricVerificationService(repo, new com.isc.facebiometricservice.biometric.CosineFaceMatcher(), properties);
-        assertEquals(VerificationStatus.INCONCLUSIVE, service.verify(request(new float[]{1, 0, 0}, true)).result());
+        FaceMatcher matcher = new CosineFaceMatcher();
+        BiometricVerificationService service = new BiometricVerificationService(repo, matcher, properties);
+
+        assertEquals(VerificationStatus.INCONCLUSIVE, service.verify(request(unitVector(0), true)).result());
     }
 
     private VerificationRequest request(float[] values, boolean normalized) {
-        var embedding = new ArrayList<Float>();
-        for (float value : values) embedding.add(value);
+        var embedding = new ArrayList<Float>(values.length);
+        for (float value : values) {
+            embedding.add(value);
+        }
         return new VerificationRequest("req-1", "customer-1",
                 new VerificationRequest.CaptureData("EMBEDDING", embedding, normalized), null, null, null);
+    }
+
+    private static float[] unitVector(int activeIndex) {
+        float[] values = new float[EMBEDDING_DIMENSION];
+        Arrays.fill(values, 0.0f);
+        values[activeIndex] = 1.0f;
+        return values;
     }
 }
