@@ -3,6 +3,7 @@ package com.isc.facebiometricservice.videoverification;
 import com.isc.facebiometricservice.biometric.CosineFaceMatcher;
 import com.isc.facebiometricservice.config.BiometricProperties;
 import com.isc.facebiometricservice.config.VideoVerificationProperties;
+import nu.pattern.OpenCV;
 import org.junit.jupiter.api.Test;
 
 import java.nio.file.Files;
@@ -27,6 +28,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class StoredVideoLivenessTest {
 
     private static final int EMBEDDING_DIMENSION = 512;
+
+    static {
+        // This test constructs VideoClipDecoder directly, without starting
+        // Spring. The application normally loads OpenCV in VideoVerificationConfig,
+        // so initialize the same bundled native library for this standalone test.
+        OpenCV.loadLocally();
+    }
 
     @Test
     void evaluatesLatestStoredVideoForLiveness() {
