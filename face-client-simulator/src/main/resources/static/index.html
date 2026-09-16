@@ -32,11 +32,19 @@
         <section class="card live-panel" hidden></section>
         <article class="card clip-panel" hidden>
           <div class="section-heading"><div><p class="eyebrow">METHOD 1</p><h2>Complete video clip</h2></div><span class="state-pill">3–5 sec</span></div>
+          <p class="method-description">Record the complete camera clip first. The server decodes, samples and verifies it after upload.</p>
           <video id="clip" controls></video>
           <div class="metrics"><div><span>Size</span><b x-text="formatBytes(clipSize)"></b></div><div><span>Duration</span><b x-text="clipDuration+' s'"></b></div></div>
+          <label>Capture duration <input type="range" min="3" max="5" step="0.5" x-model.number="duration"><b x-text="duration+' s'"></b></label>
           <label>Reference ID<input x-model="referenceId" placeholder="user-123"></label>
           <button class="primary wide" @click="capture" :disabled="recording||!stream">Capture clip</button>
           <button class="primary wide" @click="verify" :disabled="busy||!clipBlob">Verify complete clip</button>
+          <div class="clip-result" x-show="result">
+            <div class="section-heading"><p class="eyebrow">SERVER PIPELINE</p><span class="state-pill" x-text="result && result.result"></span></div>
+            <div class="pipeline"><span :class="stepClass('upload')" :title="stepTitle('upload')">Upload</span><span :class="stepClass('decode')" :title="stepTitle('decode')">Decode</span><span :class="stepClass('detect')" :title="stepTitle('detect')">Detect</span><span :class="stepClass('quality')" :title="stepTitle('quality')">Quality</span><span :class="stepClass('live')" :title="stepTitle('live')">Liveness</span><span :class="stepClass('select')" :title="stepTitle('select')">Select</span><span :class="stepClass('recognition')" :title="stepTitle('recognition')">Recognition</span><span :class="stepClass('match')" :title="stepTitle('match')">Match</span></div>
+            <div class="clip-result-grid"><div><span>Similarity</span><strong x-text="result && result.similarity != null ? result.similarity : '-' "></strong></div><div><span>Liveness</span><strong x-text="result && result.livenessScore != null ? result.livenessScore : '-' "></strong></div><div><span>Decoded frames</span><strong x-text="result && result.decodedFrames"></strong></div><div><span>Recognition frames</span><strong x-text="result && result.recognitionFrames"></strong></div><div><span>Processing</span><strong x-text="result && result.processingTimeMs + ' ms'"></strong></div><div><span>Round trip</span><strong x-text="result && result.clientRoundTripMs + ' ms'"></strong></div></div>
+            <div class="reason-box"><b>Reason codes</b><span x-text="result && result.reasonCodes && result.reasonCodes.length ? result.reasonCodes.join(', ') : 'None'"></span></div>
+          </div>
           <pre x-show="result" x-text="JSON.stringify(result,null,2)"></pre>
         </article>
       </section>
