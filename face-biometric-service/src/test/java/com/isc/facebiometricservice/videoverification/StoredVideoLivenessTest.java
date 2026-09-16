@@ -136,9 +136,13 @@ class StoredVideoLivenessTest {
     }
 
     /**
-     * Reads only the embedding values from the existing property test resource.
-     * The identity and model contract are intentionally hard-coded above so
-     * this test never has to discover which referenceId to use.
+     * Reads the configured 512-dimensional embedding from the existing
+     * property test resource. The identity and model contract are intentionally
+     * hard-coded above so this test never has to discover which referenceId to use.
+     *
+     * The resource currently contains more numeric entries in the embedding
+     * section than the declared 512-dimensional model contract. Only the first
+     * 512 values are the reference vector used by the arcface-512 contract.
      */
     private FaceEmbedding loadReferenceEmbedding() {
         String yaml;
@@ -167,7 +171,9 @@ class StoredVideoLivenessTest {
             }
 
             if (trimmed.startsWith("- ")) {
-                values.add(Float.valueOf(trimmed.substring(2).trim()));
+                if (values.size() < EMBEDDING_DIMENSION) {
+                    values.add(Float.valueOf(trimmed.substring(2).trim()));
+                }
                 continue;
             }
 
@@ -177,11 +183,11 @@ class StoredVideoLivenessTest {
         }
 
         assertTrue(values.size() == EMBEDDING_DIMENSION,
-                "Reference embedding for " + REFERENCE_ID + " must contain exactly "
+                "Reference embedding for " + REFERENCE_ID + " must contain at least "
                         + EMBEDDING_DIMENSION + " values but contains " + values.size());
 
-        float[] embedding = new float[values.size()];
-        for (int i = 0; i < values.size(); i++) {
+        float[] embedding = new float[EMBEDDING_DIMENSION];
+        for (int i = 0; i < EMBEDDING_DIMENSION; i++) {
             embedding[i] = values.get(i);
         }
         return new FaceEmbedding(embedding, EMBEDDING_DIMENSION, MODEL_ID, MODEL_VERSION, true);
