@@ -123,17 +123,25 @@ public class LiveStreamSessionManager {
 
     public void markCaptureComplete(String sessionId) {
         VerificationSession session = getSession(sessionId);
+        int frameCount = frameCountsBySession.getOrDefault(sessionId, 0);
+        FrameFeedback latest = getLatestFeedback(sessionId);
+        String finalResult = frameCount == 0
+                ? "VERIFICATION_FAILED: NO_FRAME"
+                : switch (latest.code()) {
+                    case "NO_FACE", "MULTIPLE_FACES", "INVALID_FRAME" -> "VERIFICATION_FAILED: " + latest.code();
+                    default -> "VERIFICATION_INCONCLUSIVE: RECOGNITION_PENDING";
+                };
         VerificationSession updated = new VerificationSession(
                 session.sessionId(),
                 session.customerReferenceId(),
                 session.startTime(),
                 session.expirationTime(),
                 session.expectedCaptureMode(),
-                "CAPTURE_COMPLETE",
-                "CAPTURE_COMPLETE"
+                "VERIFICATION_COMPLETE",
+                finalResult
         );
         sessions.put(sessionId, updated);
-        latestFeedbackBySession.put(sessionId, new FrameFeedback("CAPTURE_COMPLETE", "Capture completed", "CAPTURE_COMPLETE"));
+            latestFeedbackBySession.put(sessionId, new FrameFeedback(finalResult.startsWith("VERIFICATION_FAILED") ? "VERIFICATION_FAILED" : "VERIFICATION_COMPLETE", finalResult, "VERIFICATION_COMPLETE"));
     }
 
     public FrameFeedback getLatestFeedback(String sessionId) {

@@ -43,7 +43,8 @@ class LiveStreamSessionManagerTest {
         manager.markCaptureComplete(session.sessionId());
         VerificationSession updated = manager.getSession(session.sessionId());
 
-        assertEquals("CAPTURE_COMPLETE", updated.processingState());
-        assertEquals("CAPTURE_COMPLETE", manager.getLatestFeedback(session.sessionId()).code());
+        assertEquals("VERIFICATION_COMPLETE", updated.processingState());
+        assertEquals("VERIFICATION_INCONCLUSIVE: RECOGNITION_PENDING", updated.finalResult());
+        assertEquals("VERIFICATION_COMPLETE", manager.getLatestFeedback(session.sessionId()).code());
     }
 }

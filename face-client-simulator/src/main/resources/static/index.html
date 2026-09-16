@@ -1,47 +1,50 @@
 <!doctype html>
 <html lang="en">
 <head>
-	<meta charset="utf-8">
-	<meta name="viewport" content="width=device-width,initial-scale=1">
-	<title>Face Biometric Lab</title>
-	<link rel="stylesheet" href="/css/app.css">
-	<link rel="stylesheet" href="/css/video-verification.css">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Face Biometric Lab</title>
+  <link rel="stylesheet" href="/css/app.css">
+  <link rel="stylesheet" href="/css/video-verification.css">
 </head>
 <body>
 <main x-data="videoVerificationApp()" x-init="init()" class="shell">
-	<header class="topbar">
-		<div><h1>Face Biometric Lab</h1><p>Server-controlled biometric capture simulator</p></div>
-		<span class="method-badge">SERVER CAPTURE METHOD</span>
-	</header>
-	<section class="card method">
-		<h2>Active verification flow</h2>
-		<div class="flow"><span>Camera</span><b>-&gt;</b><span>Server-selected capture</span><b>-&gt;</b><span>Live feedback</span><b>-&gt;</b><span>1:1 result</span></div>
-		<small>The server selects either incremental live frames or a complete video clip. The client follows that decision.</small>
-	</section>
-	<section class="grid">
-		<article class="card">
-			<h2>1 · Camera &amp; capture</h2>
-			<label>Camera<select x-model="deviceId"><template x-for="c in cameras"><option :value="c.deviceId" x-text="c.label||'Camera'"></option></template></select></label>
-			<label>Duration <input type="range" min="3" max="5" step="0.5" x-model.number="duration"><b x-text="duration+' s'"></b></label>
-			<video id="preview" autoplay muted playsinline></video>
-			<div class="row"><button @click="start" :disabled="recording">Start camera</button><button class="primary" @click="capture" :disabled="recording||!stream">Capture clip</button><button @click="stop" :disabled="!stream">Stop</button></div>
-			<p class="state" x-text="state"></p>
-		</article>
-		<article class="card">
-			<h2>2 · Complete clip</h2>
-			<video id="clip" controls></video>
-			<div class="metrics"><div><span>Size</span><b x-text="formatBytes(clipSize)"></b></div><div><span>Duration</span><b x-text="clipDuration+' s'"></b></div></div>
-			<label>Reference ID<input x-model="referenceId" placeholder="test-person-01"></label>
-			<button class="primary wide" @click="verify" :disabled="busy||!clipBlob">Verify complete clip</button>
-			<div class="pipeline"><span :class="stepClass('upload')" :title="stepTitle('upload')">Upload</span><span :class="stepClass('decode')" :title="stepTitle('decode')">Decode</span><span :class="stepClass('detect')" :title="stepTitle('detect')">Detect</span><span :class="stepClass('quality')" :title="stepTitle('quality')">Quality</span><span :class="stepClass('live')" :title="stepTitle('live')">Liveness</span><span :class="stepClass('select')" :title="stepTitle('select')">Select</span><span :class="stepClass('recognition')" :title="stepTitle('recognition')">Recognition</span><span :class="stepClass('match')" :title="stepTitle('match')">Cosine 1:1</span></div>
-			<pre x-show="result" x-text="JSON.stringify(result,null,2)"></pre>
-		</article>
-	</section>
-	<section class="card note"><b>Diagnostics</b><span>Live mode reports server feedback, frame count, upload bytes and per-frame latency.</span></section>
+  <header class="topbar">
+    <div><p class="eyebrow">BIOMETRIC VERIFICATION LAB</p><h1>Capture console</h1><p>Server-directed camera verification</p></div>
+    <div class="server-status"><span class="status-dot"></span><span>Server connected</span><strong class="method-badge">Loading method</strong></div>
+  </header>
+  <div class="app-layout">
+    <aside class="method-sidebar">
+      <p class="eyebrow">AVAILABLE METHODS</p>
+      <button class="method-nav live-nav" type="button"><span class="method-icon">◉</span><span><strong>Live stream</strong><small>Frame-by-frame</small></span><i class="method-check">●</i></button>
+      <button class="method-nav clip-nav" type="button"><span class="method-icon">▣</span><span><strong>Full clip</strong><small>Upload 3–5 seconds</small></span><i class="method-check">●</i></button>
+      <div class="sidebar-note"><span class="lock-icon">◆</span><span>The server selects the active method. The client cannot switch it during a session.</span></div>
+    </aside>
+    <section class="workspace">
+      <section class="card camera-card">
+        <div class="section-heading"><div><p class="eyebrow">INPUT</p><h2>Camera</h2></div><span class="state-pill camera-state">Idle</span></div>
+        <label>Camera<select x-model="deviceId"><template x-for="c in cameras"><option :value="c.deviceId" x-text="c.label||'Camera'"></option></template></select></label>
+        <video id="preview" autoplay muted playsinline></video>
+        <div class="row"><button class="primary" @click="start" :disabled="recording">Start camera</button><button @click="stop" :disabled="!stream">Stop camera</button></div>
+        <p class="state" x-text="state"></p>
+      </section>
+      <section class="method-content">
+        <section class="card live-panel" hidden></section>
+        <article class="card clip-panel" hidden>
+          <div class="section-heading"><div><p class="eyebrow">METHOD 1</p><h2>Complete video clip</h2></div><span class="state-pill">3–5 sec</span></div>
+          <video id="clip" controls></video>
+          <div class="metrics"><div><span>Size</span><b x-text="formatBytes(clipSize)"></b></div><div><span>Duration</span><b x-text="clipDuration+' s'"></b></div></div>
+          <label>Reference ID<input x-model="referenceId" placeholder="user-123"></label>
+          <button class="primary wide" @click="capture" :disabled="recording||!stream">Capture clip</button>
+          <button class="primary wide" @click="verify" :disabled="busy||!clipBlob">Verify complete clip</button>
+          <pre x-show="result" x-text="JSON.stringify(result,null,2)"></pre>
+        </article>
+      </section>
+    </section>
+  </div>
 </main>
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 <script src="/js/app.js"></script>
 <script src="/js/live-stream.js"></script>
 </body>
 </html>
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Face Biometric Lab · Server Video Verification</title><link rel="stylesheet" href="/css/app.css"><link rel="stylesheet" href="/css/video-verification.css"></head><body><main x-data="videoVerificationApp()" x-init="init()" class="shell"><header class="topbar"><div><h1>Face Biometric Lab</h1><p>Server-side video verification simulator</p></div><span class="method-badge">SERVER VIDEO VERIFICATION</span></header><section class="card method"><h2>Active verification flow</h2><div class="flow"><span>Camera</span><b>→</b><span>3–5s clip</span><b>→</b><span>Upload</span><b>→</b><span>Server pipeline</span><b>→</b><span>1:1 result</span></div><small>Current phase uses complete video upload with server-side detection, liveness, ArcFace 512-D embedding and 1:1 cosine comparison.</small></section><section class="grid"><article class="card"><h2>1 · Camera & capture</h2><label>Camera<select x-model="deviceId"><template x-for="c in cameras"><option :value="c.deviceId" x-text="c.label||'Camera'"></option></template></select></label><label>Duration <input type="range" min="3" max="5" step="0.5" x-model.number="duration"><b x-text="duration+' s'"></b></label><video id="preview" autoplay muted playsinline></video><div class="row"><button @click="start" :disabled="recording">Start camera</button><button class="primary" @click="capture" :disabled="recording||!stream">Capture clip</button><button @click="stop" :disabled="!stream">Stop</button></div><p class="state" x-text="state"></p></article><article class="card"><h2>2 · Captured clip</h2><video id="clip" controls></video><div class="metrics"><div><span>Size</span><b x-text="formatBytes(clipSize)"></b></div><div><span>Duration</span><b x-text="clipDuration+' s'"></b></div></div><label>Reference ID<input x-model="referenceId" placeholder="test-person-01"></label><button class="primary wide" @click="verify" :disabled="!clipBlob||busy">Send full clip to server</button></article></section><section class="card"><h2>3 · Server processing</h2><div class="pipeline"><span :class="stepClass('upload')" :title="stepTitle('upload')">Upload</span><span :class="stepClass('decode')" :title="stepTitle('decode')">Decode frames</span><span :class="stepClass('detect')" :title="stepTitle('detect')">Detect / count</span><span :class="stepClass('quality')" :title="stepTitle('quality')">Quality</span><span :class="stepClass('live')" :title="stepTitle('live')">Liveness</span><span :class="stepClass('select')" :title="stepTitle('select')">Select frames</span><span :class="stepClass('recognition')" :title="stepTitle('recognition')">ArcFace 512</span><span :class="stepClass('match')" :title="stepTitle('match')">Cosine 1:1</span></div><pre x-show="result" x-text="JSON.stringify(result,null,2)"></pre></section><section class="card note"><b>Diagnostics</b><span>Pipeline indicators now reflect the actual server response: completed stages are green, failed stages are red, and stages not reached are shown as skipped.</span></section></main><script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script><script src="/js/app.js"></script></body></html>
