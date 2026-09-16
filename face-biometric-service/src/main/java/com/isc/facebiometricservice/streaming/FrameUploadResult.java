@@ -8,6 +8,8 @@ public record FrameUploadResult(
         String state,
         String message,
         long frameSizeBytes,
-        Instant receivedAt
+        Instant receivedAt,
+        int frameCount,
+        int livenessProgressPercent
 ) {
 }

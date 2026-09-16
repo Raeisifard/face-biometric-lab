@@ -7,6 +7,7 @@ import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import org.springframework.beans.factory.annotation.Autowired;
 
 @Service
 public class LiveStreamSessionManager {
@@ -14,16 +15,27 @@ public class LiveStreamSessionManager {
     private final Map<String, VerificationSession> sessions = new ConcurrentHashMap<>();
     private final Map<String, FrameFeedback> latestFeedbackBySession = new ConcurrentHashMap<>();
     private final Map<String, Integer> frameCountsBySession = new ConcurrentHashMap<>();
+    private final LiveFrameAnalyzer analyzer;
 
     public LiveStreamSessionManager() {
-        this(Duration.ofMinutes(2));
+        this(Duration.ofMinutes(2), frame -> new LiveFrameAnalyzer.Analysis("GOOD_FRAME", "Frame accepted"));
     }
 
     public LiveStreamSessionManager(Duration sessionTtl) {
+        this(sessionTtl, frame -> new LiveFrameAnalyzer.Analysis("GOOD_FRAME", "Frame accepted"));
+    }
+
+    @Autowired
+    public LiveStreamSessionManager(LiveFrameAnalyzer analyzer) {
+        this(Duration.ofMinutes(2), analyzer);
+    }
+
+    private LiveStreamSessionManager(Duration sessionTtl, LiveFrameAnalyzer analyzer) {
         if (sessionTtl == null || sessionTtl.isNegative() || sessionTtl.isZero()) {
             throw new IllegalArgumentException("sessionTtl must be positive");
         }
         this.sessionTtl = sessionTtl;
+        this.analyzer = analyzer;
     }
 
     public VerificationSession createSession(String customerReferenceId, String expectedCaptureMode) {
@@ -60,11 +72,14 @@ public class LiveStreamSessionManager {
         validateFrame(sessionId, frame);
         VerificationSession session = getSession(sessionId);
         int count = frameCountsBySession.merge(sessionId, 1, Integer::sum);
-        String feedbackCode = count > 1 ? "CAPTURE_CONTINUE" : "GOOD_FRAME";
-        String state = count > 1 ? "CAPTURE_CONTINUE" : session.processingState();
-        FrameFeedback feedback = new FrameFeedback(feedbackCode, "Frame accepted", state);
+        int progress = Math.min(100, count * 20);
+        LiveFrameAnalyzer.Analysis analysis = analyzer.analyze(frame);
+        String feedbackCode = !"GOOD_FRAME".equals(analysis.feedbackCode()) ? analysis.feedbackCode() : count == 1 ? "GOOD_FRAME" : count < 5 ? "LIVENESS_PROGRESS" : "CAPTURE_CONTINUE";
+        String state = count < 5 ? "LIVENESS_ANALYSIS" : "CAPTURING";
+        String message = !"GOOD_FRAME".equals(analysis.feedbackCode()) ? analysis.message() : count < 5 ? "Frame accepted; collect more temporal evidence" : "Frame accepted; continue capture";
+        FrameFeedback feedback = new FrameFeedback(feedbackCode, message, state);
         latestFeedbackBySession.put(sessionId, feedback);
-        return new FrameUploadResult(sessionId, feedback.code(), feedback.state(), feedback.message(), frame == null ? 0 : frame.length, Instant.now());
+        return new FrameUploadResult(sessionId, feedback.code(), feedback.state(), feedback.message(), frame.length, Instant.now(), count, progress);
     }
 
     public void validateFrame(String sessionId, byte[] frame) {
@@ -80,6 +95,12 @@ public class LiveStreamSessionManager {
         }
         if (frame == null || frame.length == 0) {
             throw new IllegalArgumentException("Frame payload is required");
+        }
+        if (!"LIVE_STREAM".equalsIgnoreCase(session.expectedCaptureMode())) {
+            throw new IllegalStateException("Session capture mode does not accept live frames");
+        }
+        if (!"CAPTURING".equals(session.processingState()) && !"LIVENESS_ANALYSIS".equals(session.processingState())) {
+            throw new IllegalStateException("Session is no longer accepting frames: " + session.processingState());
         }
     }
 

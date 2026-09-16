@@ -1,6 +1,7 @@
 package com.isc.facebiometricservice.api;
 
 import com.isc.facebiometricservice.streaming.FrameUploadResult;
+import com.isc.facebiometricservice.streaming.FrameFeedback;
 import com.isc.facebiometricservice.streaming.LiveStreamSessionManager;
 import com.isc.facebiometricservice.streaming.VerificationSession;
 import org.slf4j.Logger;
@@ -46,6 +47,11 @@ public class LiveStreamController {
     public VerificationSession complete(@PathVariable String sessionId) {
         sessionManager.markCaptureComplete(sessionId);
         return sessionManager.getSession(sessionId);
+    }
+
+    @GetMapping("/sessions/{sessionId}/feedback")
+    public FrameFeedback feedback(@PathVariable String sessionId) {
+        return sessionManager.getLatestFeedback(sessionId);
     }
 
     @PostMapping("/sessions/{sessionId}/expire")

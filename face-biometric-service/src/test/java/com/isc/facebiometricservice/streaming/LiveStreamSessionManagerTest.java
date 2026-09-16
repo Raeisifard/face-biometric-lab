@@ -36,7 +36,9 @@ class LiveStreamSessionManagerTest {
         assertEquals("GOOD_FRAME", first.feedbackCode());
 
         var second = manager.recordFrame(session.sessionId(), new byte[] {1, 2, 3, 4});
-        assertEquals("CAPTURE_CONTINUE", second.state());
+        assertEquals("LIVENESS_ANALYSIS", second.state());
+        assertEquals(2, second.frameCount());
+        assertEquals("LIVENESS_PROGRESS", second.feedbackCode());
 
         manager.markCaptureComplete(session.sessionId());
         VerificationSession updated = manager.getSession(session.sessionId());

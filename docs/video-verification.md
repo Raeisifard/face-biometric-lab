@@ -1,6 +1,8 @@
 # Server Video Verification
 
-The current phase implements a server-side 1:1 face verification flow. The simulator records a 3–5 second browser clip and uploads the complete clip to `POST /api/v1/biometric/video-verification/verify-clip` through the simulator proxy.
+The project supports two server-selected capture methods. `FULL_CLIP` records a 3–5 second browser clip and uploads the complete clip to `POST /api/v1/biometric/video-verification/verify-clip`. `LIVE_STREAM` creates a session and uploads sampled JPEG frames incrementally through `/api/v1/live-stream/sessions/{sessionId}/frames`.
+
+Set the server decision with `BIOMETRIC_CAPTURE_METHOD=LIVE_STREAM` or `BIOMETRIC_CAPTURE_METHOD=FULL_CLIP`. The default is `LIVE_STREAM`. The simulator reads `GET /api/v1/biometric/capture-method` through its proxy and only enables the selected flow.
 
 ## Server pipeline
 
@@ -42,6 +44,8 @@ See `face-biometric-service/src/main/resources/application.yml` under `biometric
 6. Enter a reference ID that exists in the configured reference repository.
 7. Send the full clip and inspect the returned status, reason codes, decoded frame count, recognition frame count and processing latency.
 8. If the result is `INVALID_VIDEO`, inspect the service logs for FPS, reported frame count and calculated duration before changing biometric thresholds or recognition code.
+
+For the live-stream method, open the same simulator page, click **Start camera**, enter the reference ID in the live panel, choose an upload FPS, and click **Start live session**. The browser samples the preview into JPEG frames and sends one frame at a time. The panel displays the session state, machine-readable server feedback, frame count, uploaded bytes and request latency. Click **Stop live session** to send the completion request. Frames are bound to the server session and are rejected after expiration, completion or a capture-mode mismatch.
 
 ## Limitations
 
