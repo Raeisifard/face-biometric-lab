@@ -2,6 +2,9 @@ server:
   port: 8090
 spring:
   application.name: face-biometric-service
+  config:
+    import:
+      - optional:classpath:biometric-embeddings.yml
   servlet.multipart.max-file-size: 25MB
   servlet.multipart.max-request-size: 25MB
   flyway.enabled: false
