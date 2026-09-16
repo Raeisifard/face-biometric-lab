@@ -1,20 +1,13 @@
-#import:
-#  - classpath:biometric-embeddings.yml
 server:
   port: 8090
 spring:
-  application:
-    name: face-biometric-service
-  config:
-    import:
-      - optional:classpath:biometric-embeddings.yml
-  flyway:
-    enabled: false
-  autoconfigure:
-    exclude:
-      - org.springframework.boot.autoconfigure.mongo.MongoAutoConfiguration
-      - org.springframework.boot.autoconfigure.data.mongo.MongoDataAutoConfiguration
-
+  application.name: face-biometric-service
+  servlet.multipart.max-file-size: 25MB
+  servlet.multipart.max-request-size: 25MB
+  flyway.enabled: false
+  autoconfigure.exclude:
+    - org.springframework.boot.autoconfigure.mongo.MongoAutoConfiguration
+    - org.springframework.boot.autoconfigure.data.mongo.MongoDataAutoConfiguration
 biometric:
   repository-type: property
   model-id: arcface-512
@@ -24,29 +17,27 @@ biometric:
   algorithm: COSINE
   threshold: 0.90
   normalized-required: true
-  detector:
-    enabled: false
-    model-path: ${BIOMETRIC_DETECTOR_MODEL_PATH:models/detection/face_detection_yunet_2023mar.onnx}
-    confidence-threshold: 0.90
-  liveness:
-    enabled: false
-    model-path: ${BIOMETRIC_LIVENESS_MODEL_PATH:models/liveness/2.7_80x80_MiniFASNetV2.onnx}
-    threshold: 0.50
-  oracle:
-    url: ${BIOMETRIC_ORACLE_URL:jdbc:oracle:thin:@172.16.88.115:1521/XE}
-    username: ${BIOMETRIC_ORACLE_USERNAME:oracle}
-    password: ${BIOMETRIC_ORACLE_PASSWORD:oracle}
-  mongo:
-    uri: ${BIOMETRIC_MONGO_URI:mongodb://172.16.88.115:27017}
-    database: ${BIOMETRIC_MONGO_DATABASE:face_biometric}
-    collection: ${BIOMETRIC_MONGO_COLLECTION:face_embeddings}
-  cors:
-    allowed-origins: ${BIOMETRIC_CORS_ORIGINS:http://localhost:8091}
-management:
-  endpoints:
-    web:
-      exposure:
-        include: health,info
-logging:
-  level:
-    com.isc.facebiometricservice: INFO
+  oracle.url: ${BIOMETRIC_ORACLE_URL:}
+  oracle.username: ${BIOMETRIC_ORACLE_USERNAME:}
+  oracle.password: ${BIOMETRIC_ORACLE_PASSWORD:}
+  mongo.uri: ${BIOMETRIC_MONGO_URI:}
+  mongo.database: ${BIOMETRIC_MONGO_DATABASE:face_biometric}
+  mongo.collection: ${BIOMETRIC_MONGO_COLLECTION:face_embeddings}
+  cors.allowed-origins: ${BIOMETRIC_CORS_ORIGINS:http://localhost:8091}
+biometric.method1:
+  enabled: true
+  max-clip-bytes: 26214400
+  min-duration-seconds: 3.0
+  max-duration-seconds: 5.0
+  sample-fps: 4.0
+  min-face-size-pixels: 80
+  max-faces: 1
+  min-quality-score: 0.45
+  liveness-required: true
+  liveness-threshold: 0.50
+  recognition-frames: 5
+  aggregation: MEAN
+  detector-model-path: ${BIOMETRIC_DETECTOR_MODEL_PATH:models/detection/face_detection_yunet_2023mar.onnx}
+  liveness-model-path: ${BIOMETRIC_LIVENESS_MODEL_PATH:models/liveness/2.7_80x80_MiniFASNetV2.onnx}
+  recognition-model-path: ${BIOMETRIC_MODEL_PATH:models/recognition/w600k_r50.onnx}
+management.endpoints.web.exposure.include: health,info
