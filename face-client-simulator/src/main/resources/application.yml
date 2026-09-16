@@ -11,15 +11,10 @@ spring:
 
 simulator:
   server-base-url: ${BIOMETRIC_SERVER_URL:http://localhost:8090}
-
-  # Model paths are logical paths below this directory. The resolver also
-  # discovers the directory from the application/JAR and project locations,
-  # so the JVM working directory does not matter.
   models-dir: ${FACE_SIMULATOR_MODELS_DIR:models}
   detector-model-path: ${FACE_DETECTOR_MODEL:detector/face_detection_yunet_2023mar.onnx}
   recognition-model-path: ${FACE_RECOGNITION_MODEL:recognition/w600k_r50.onnx}
   liveness-model-path: ${FACE_LIVENESS_MODEL:liveness/2.7_80x80_MiniFASNetV2.onnx}
-
   recognition-model-id: arcface-512
   recognition-model-version: w600k-r50
   detection-threshold: 0.75
@@ -38,5 +33,5 @@ management:
 logging:
   level:
     com.isc.faceclientsimulator: INFO
-    com.isc.faceclientsimulator.api.SimulatorController: INFO
-    com.isc.faceclientsimulator.client.BiometricServerClient: INFO
+    com.isc.faceclientsimulator.api.VideoVerificationSimulatorController: INFO
+    com.isc.faceclientsimulator.client.VideoVerificationServerClient: INFO

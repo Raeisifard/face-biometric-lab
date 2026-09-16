@@ -24,20 +24,25 @@ biometric:
   mongo.database: ${BIOMETRIC_MONGO_DATABASE:face_biometric}
   mongo.collection: ${BIOMETRIC_MONGO_COLLECTION:face_embeddings}
   cors.allowed-origins: ${BIOMETRIC_CORS_ORIGINS:http://localhost:8091}
-biometric.method1:
-  enabled: true
-  max-clip-bytes: 26214400
-  min-duration-seconds: 3.0
-  max-duration-seconds: 5.0
-  sample-fps: 4.0
-  min-face-size-pixels: 80
-  max-faces: 1
-  min-quality-score: 0.45
-  liveness-required: true
-  liveness-threshold: 0.50
-  recognition-frames: 5
-  aggregation: MEAN
-  detector-model-path: ${BIOMETRIC_DETECTOR_MODEL_PATH:../models/detector/face_detection_yunet_2023mar.onnx}
-  liveness-model-path: ${BIOMETRIC_LIVENESS_MODEL_PATH:../models/liveness/2.7_80x80_MiniFASNetV2.onnx}
-  recognition-model-path: ${BIOMETRIC_MODEL_PATH:../models/recognition/w600k_r50.onnx}
+  video-verification:
+    enabled: true
+    max-clip-bytes: 26214400
+    min-duration-seconds: 3.0
+    max-duration-seconds: 5.0
+    sample-fps: 4.0
+    min-face-size-pixels: 80
+    max-faces: 1
+    min-quality-score: 0.45
+    liveness-required: true
+    liveness-threshold: 0.50
+    recognition-frames: 5
+    aggregation: MEAN
+    detector-model-path: ${BIOMETRIC_DETECTOR_MODEL_PATH:../models/detector/face_detection_yunet_2023mar.onnx}
+    liveness-model-path: ${BIOMETRIC_LIVENESS_MODEL_PATH:../models/liveness/2.7_80x80_MiniFASNetV2.onnx}
+    recognition-model-path: ${BIOMETRIC_MODEL_PATH:../models/recognition/w600k_r50.onnx}
 management.endpoints.web.exposure.include: health,info
+logging:
+  level:
+    com.isc.facebiometricservice: INFO
+    com.isc.facebiometricservice.videoverification: DEBUG
+    com.isc.facebiometricservice.api.VideoVerificationController: INFO
