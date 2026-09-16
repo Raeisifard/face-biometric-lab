@@ -37,6 +37,7 @@ biometric:
     liveness-threshold: 0.50
     recognition-frames: 5
     aggregation: MEAN
+    storage-directory: ${BIOMETRIC_VIDEO_STORAGE_DIR:video-captures}
     detector-model-path: ${BIOMETRIC_DETECTOR_MODEL_PATH:../models/detector/face_detection_yunet_2023mar.onnx}
     liveness-model-path: ${BIOMETRIC_LIVENESS_MODEL_PATH:../models/liveness/2.7_80x80_MiniFASNetV2.onnx}
     recognition-model-path: ${BIOMETRIC_MODEL_PATH:../models/recognition/w600k_r50.onnx}

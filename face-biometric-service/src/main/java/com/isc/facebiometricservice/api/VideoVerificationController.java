@@ -24,7 +24,7 @@ public class VideoVerificationController {
    if(!p.enabled()){log.warn("Video verification disabled: requestId={}",id);return VideoVerificationResponse.inconclusive(id,referenceId,"VIDEO_VERIFICATION_DISABLED");}
    if(clip==null||clip.isEmpty()){log.warn("Video verification rejected empty upload: requestId={}, referenceId={}",id,referenceId);return VideoVerificationResponse.invalid(id,referenceId,"INVALID_VIDEO");}
    if(clip.getSize()>p.maxClipBytes()){log.warn("Video verification rejected oversized upload: requestId={}, bytes={}, maxBytes={}",id,clip.getSize(),p.maxClipBytes());return VideoVerificationResponse.invalid(id,referenceId,"VIDEO_TOO_LARGE");}
-   try{var d=decoder.decode(clip,p.sampleFps());var o=engine.verify(id,d,referenceId);return new VideoVerificationResponse(id,referenceId,Status.valueOf(o.result()),o.similarity(),o.livenessScore(),o.processingMs(),o.decodedFrames(),o.recognitionFrames(),o.reasons());}
+   try{var d=decoder.decode(clip,p.sampleFps(),referenceId);var o=engine.verify(id,d,referenceId);return new VideoVerificationResponse(id,referenceId,Status.valueOf(o.result()),o.similarity(),o.livenessScore(),o.processingMs(),o.decodedFrames(),o.recognitionFrames(),o.reasons());}
    catch(IllegalArgumentException e){String reason=reason(e.getMessage());log.warn("Video verification rejected: requestId={}, referenceId={}, reason={}",id,referenceId,reason,e);return VideoVerificationResponse.invalid(id,referenceId,reason);}
    catch(Exception e){log.error("Video verification processing error: requestId={}, referenceId={}",id,referenceId,e);return new VideoVerificationResponse(id,referenceId,Status.PROCESSING_ERROR,null,null,0,0,0,List.of("MODEL_ERROR"));}
  }
