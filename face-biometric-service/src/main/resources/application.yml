@@ -16,13 +16,22 @@ spring:
       - org.springframework.boot.autoconfigure.data.mongo.MongoDataAutoConfiguration
 
 biometric:
-  repository-type: property #memory
+  repository-type: property
   model-id: arcface-512
   model-version: w600k-r50
+  model-path: ${BIOMETRIC_MODEL_PATH:models/recognition/w600k_r50.onnx}
   dimension: 512
   algorithm: COSINE
   threshold: 0.90
   normalized-required: true
+  detector:
+    enabled: false
+    model-path: ${BIOMETRIC_DETECTOR_MODEL_PATH:models/detection/face_detection_yunet_2023mar.onnx}
+    confidence-threshold: 0.90
+  liveness:
+    enabled: false
+    model-path: ${BIOMETRIC_LIVENESS_MODEL_PATH:models/liveness/2.7_80x80_MiniFASNetV2.onnx}
+    threshold: 0.50
   oracle:
     url: ${BIOMETRIC_ORACLE_URL:jdbc:oracle:thin:@172.16.88.115:1521/XE}
     username: ${BIOMETRIC_ORACLE_USERNAME:oracle}
@@ -38,8 +47,6 @@ management:
     web:
       exposure:
         include: health,info
-
 logging:
   level:
     com.isc.facebiometricservice: INFO
-    com.isc.facebiometricservice.api.BiometricController: INFO
