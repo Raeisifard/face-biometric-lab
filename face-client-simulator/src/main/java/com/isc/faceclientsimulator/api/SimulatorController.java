@@ -3,6 +3,7 @@ package com.isc.faceclientsimulator.api;
 import com.isc.faceclientsimulator.domain.FaceEmbedding;
 import com.isc.faceclientsimulator.service.BiometricFrameProcessor;
 import com.isc.faceclientsimulator.client.BiometricServerClient;
+import com.isc.faceclientsimulator.client.HybridVerificationServerClient;
 import com.isc.faceclientsimulator.client.ServerVerifyResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,9 +21,11 @@ public class SimulatorController {
     private static final Logger log = LoggerFactory.getLogger(SimulatorController.class);
     private final BiometricFrameProcessor processor;
     private final BiometricServerClient serverClient;
+    private final HybridVerificationServerClient hybridClient;
     private final ConcurrentHashMap<String,Boolean> sessions = new ConcurrentHashMap<>();
 
-    public SimulatorController(BiometricFrameProcessor processor,BiometricServerClient serverClient){this.processor=processor;this.serverClient=serverClient;}
+    public SimulatorController(BiometricFrameProcessor processor,BiometricServerClient serverClient,
+                                HybridVerificationServerClient hybridClient){this.processor=processor;this.serverClient=serverClient;this.hybridClient=hybridClient;}
 
     @GetMapping("/models")
     public ModelsResponse models() {
@@ -108,6 +111,18 @@ public class SimulatorController {
         if (!analysis.liveness().frameLooksLive()) throw new IllegalStateException("Temporal liveness has not passed: " + analysis.liveness().status());
         FaceEmbedding embedding = processor.generateClientEmbedding(image.getBytes());
         return serverClient.enrollClient(userId, embedding);
+    }
+
+    @PostMapping("/hybrid/sessions")
+    public Object hybridSession(@RequestParam String referenceId) {
+        return hybridClient.createSession(referenceId);
+    }
+
+    @PostMapping(value="/hybrid/verify", consumes=MediaType.MULTIPART_FORM_DATA_VALUE)
+    public Object hybridVerify(@RequestParam String sessionId, @RequestParam String referenceId,
+                               @RequestPart("image") MultipartFile image) throws Exception {
+        requireImage(image);
+        return hybridClient.verify(sessionId, referenceId, image.getBytes());
     }
 
     private void requireSession(String id){if(!sessions.containsKey(id))throw new IllegalArgumentException("Unknown session: "+id);}
