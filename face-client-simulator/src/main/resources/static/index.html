@@ -7,58 +7,50 @@
   <link rel="stylesheet" href="/css/app.css">
   <link rel="stylesheet" href="/css/video-verification.css">
   <link rel="stylesheet" href="/css/live-stream.css">
+  <link rel="stylesheet" href="/css/hybrid-best-frame.css">
 </head>
 <body>
 <main x-data="videoVerificationApp()" x-init="init()" class="shell">
-  <header class="topbar">
-    <div><p class="eyebrow">BIOMETRIC VERIFICATION LAB</p><h1>Capture console</h1><p>Server-directed camera verification</p></div>
-    <div class="server-status"><span class="status-dot"></span><span>Server connected</span><strong class="method-badge">Loading method</strong></div>
-  </header>
+  <header class="topbar"><div><p class="eyebrow">BIOMETRIC VERIFICATION LAB</p><h1>Capture console</h1><p>Compare capture methods without changing the camera workflow</p></div><div class="server-status"><span class="status-dot"></span><span>Server connected</span><strong class="method-badge">Loading method</strong></div></header>
   <div class="app-layout">
     <aside class="method-sidebar">
       <p class="eyebrow">AVAILABLE METHODS</p>
       <button class="method-nav live-nav" type="button"><span class="method-icon">◉</span><span><strong>Live stream</strong><small>Frame-by-frame</small></span><i class="method-check">●</i></button>
       <button class="method-nav clip-nav" type="button"><span class="method-icon">▣</span><span><strong>Full clip</strong><small>Upload 3–5 seconds</small></span><i class="method-check">●</i></button>
       <button class="method-nav client-nav" type="button"><span class="method-icon">◎</span><span><strong>Client embedding</strong><small>Local recognition</small></span><i class="method-check">●</i></button>
+      <button class="method-nav hybrid-nav" type="button"><span class="method-icon">◇</span><span><strong>Hybrid best frame</strong><small>One selected image</small></span><i class="method-check">●</i></button>
       <div class="sidebar-note"><span class="lock-icon">◆</span><span class="method-note">The server policy controls method selection.</span></div>
     </aside>
     <section class="workspace">
-      <section class="card camera-card">
-        <div class="section-heading"><div><p class="eyebrow">INPUT</p><h2>Camera</h2></div><span class="state-pill camera-state">Idle</span></div>
+      <section class="card camera-card"><div class="section-heading"><div><p class="eyebrow">INPUT</p><h2>Camera</h2></div><span class="state-pill camera-state">Idle</span></div>
         <label>Camera<select x-model="deviceId"><template x-for="c in cameras"><option :value="c.deviceId" x-text="c.label||'Camera'"></option></template></select></label>
         <div class="camera-stage"><video id="preview" autoplay muted playsinline></video><canvas id="camera-overlay"></canvas><div class="camera-guide"></div></div>
-        <div class="row"><button class="primary" @click="start" :disabled="recording">Start camera</button><button @click="stop" :disabled="!stream">Stop camera</button></div>
-        <p class="state" x-text="state"></p>
+        <div class="row"><button class="primary" @click="start" :disabled="recording">Start camera</button><button @click="stop" :disabled="!stream">Stop camera</button></div><p class="state" x-text="state"></p>
       </section>
       <section class="method-content">
         <section class="card live-panel" hidden></section>
         <section class="card client-panel" hidden></section>
         <article class="card clip-panel" hidden>
           <div class="section-heading"><div><p class="eyebrow">FULL CLIP</p><h2>Complete video clip</h2></div><span class="state-pill">3–5 sec</span></div>
-          <p class="method-description">Record the complete camera clip first. The server decodes, samples and verifies it after upload.</p>
-          <video id="clip" controls></video>
+          <p class="method-description">Record the complete camera clip first. The server decodes, samples and verifies it after upload.</p><video id="clip" controls></video>
           <div class="metrics"><div><span>Size</span><b x-text="formatBytes(clipSize)"></b></div><div><span>Duration</span><b x-text="clipDuration+' s'"></b></div></div>
-          <label>Capture duration <input type="range" min="3" max="5" step="0.5" x-model.number="duration"><b x-text="duration+' s'"></b></label>
-          <label>Reference ID<input x-model="referenceId" placeholder="user-123"></label>
-          <button class="primary wide" @click="capture" :disabled="recording||!stream">Capture clip</button>
-          <button class="primary wide" @click="verify" :disabled="busy||!clipBlob">Verify complete clip</button>
-          <div class="clip-result" x-show="result">
-            <div class="section-heading"><p class="eyebrow">SERVER PIPELINE</p><span class="state-pill" x-text="result && result.result"></span></div>
-            <div class="pipeline"><span :class="stepClass('upload')" :title="stepTitle('upload')">Upload</span><span :class="stepClass('decode')" :title="stepTitle('decode')">Decode</span><span :class="stepClass('detect')" :title="stepTitle('detect')">Detect</span><span :class="stepClass('quality')" :title="stepTitle('quality')">Quality</span><span :class="stepClass('live')" :title="stepTitle('live')">Liveness</span><span :class="stepClass('select')" :title="stepTitle('select')">Select</span><span :class="stepClass('recognition')" :title="stepTitle('recognition')">Recognition</span><span :class="stepClass('match')" :title="stepTitle('match')">Match</span></div>
-            <div class="clip-result-grid"><div><span>Similarity</span><strong x-text="result && result.similarity != null ? result.similarity : '-' "></strong></div><div><span>Liveness</span><strong x-text="result && result.livenessScore != null ? result.livenessScore : '-' "></strong></div><div><span>Decoded frames</span><strong x-text="result && result.decodedFrames"></strong></div><div><span>Recognition frames</span><strong x-text="result && result.recognitionFrames"></strong></div><div><span>Processing</span><strong x-text="result && result.processingTimeMs + ' ms'"></strong></div><div><span>Round trip</span><strong x-text="result && result.clientRoundTripMs + ' ms'"></strong></div></div>
-            <div class="reason-box"><b>Reason codes</b><span x-text="result && result.reasonCodes && result.reasonCodes.length ? result.reasonCodes.join(', ') : 'None'"></span></div>
+          <label>Capture duration <input type="range" min="3" max="5" step="0.5" x-model.number="duration"><b x-text="duration+' s'"></b></label><label>Reference ID<input x-model="referenceId" placeholder="user-123"></label>
+          <button class="primary wide" @click="capture" :disabled="recording||!stream">Capture clip</button><button class="primary wide" @click="verify" :disabled="busy||!clipBlob">Verify complete clip</button>
+          <div class="clip-result" x-show="result"><div class="section-heading"><p class="eyebrow">SERVER PIPELINE</p><span class="state-pill" x-text="result && result.result"></span></div><div class="pipeline"><span :class="stepClass('upload')">Upload</span><span :class="stepClass('decode')">Decode</span><span :class="stepClass('detect')">Detect</span><span :class="stepClass('quality')">Quality</span><span :class="stepClass('live')">Liveness</span><span :class="stepClass('select')">Select</span><span :class="stepClass('recognition')">Recognition</span><span :class="stepClass('match')">Match</span></div><div class="clip-result-grid"><div><span>Similarity</span><strong x-text="result&&result.similarity!=null?result.similarity:'-' "></strong></div><div><span>Liveness</span><strong x-text="result&&result.livenessScore!=null?result.livenessScore:'-' "></strong></div><div><span>Decoded frames</span><strong x-text="result&&result.decodedFrames"></strong></div><div><span>Recognition frames</span><strong x-text="result&&result.recognitionFrames"></strong></div><div><span>Processing</span><strong x-text="result&&result.processingTimeMs+' ms'"></strong></div><div><span>Round trip</span><strong x-text="result&&result.clientRoundTripMs+' ms'"></strong></div></div><div class="reason-box"><b>Reason codes</b><span x-text="result&&result.reasonCodes&&result.reasonCodes.length?result.reasonCodes.join(', '):'None'"></span></div></div><pre x-show="result" x-text="JSON.stringify(result,null,2)"></pre>
+        </article>
+        <article class="card hybrid-panel" x-data="hybridBestFrameApp()" x-show="window.selectedCaptureMethod==='HYBRID_SINGLE_FRAME'">
+          <div class="section-heading"><div><p class="eyebrow">METHOD 4 · HYBRID</p><h2>Single best frame</h2></div><span class="state-pill" x-text="status"></span></div>
+          <p class="hybrid-description">The simulator analyzes lightweight capture signals, keeps the strongest frame, and sends only that one image to the server. Client liveness is an input signal; the server remains authoritative.</p>
+          <div class="hybrid-grid">
+            <div><img class="best-frame" :src="bestFrame||''" alt="Selected best face frame" x-show="bestFrame"><div class="hybrid-status" x-show="!bestFrame"><strong>Waiting for a best frame</strong><span>Start the analysis while the camera is running.</span></div><div class="hybrid-metrics"><div><span>Best score</span><strong x-text="bestScore?bestScore.toFixed(3):'-'"></strong></div><div><span>Current score</span><strong x-text="currentScore!=null?currentScore.toFixed(3):'-'"></strong></div><div><span>Selected upload</span><strong x-text="bestFrame?'1 image':'0 images'"></strong></div></div><div class="row"><button class="primary" @click="start" :disabled="running||!$root.stream">Analyze frames</button><button @click="stop" :disabled="!running">Stop selection</button><button @click="reset" :disabled="running">Reset</button></div></div>
+            <div><label>Reference ID<input x-model="referenceId" placeholder="user-123"></label><div class="quality-grid"><div><span>Face</span><b x-text="quality.face"></b></div><div><span>Face size</span><b x-text="quality.size"></b></div><div><span>Sharpness</span><b x-text="quality.sharpness"></b></div><div><span>Brightness</span><b x-text="quality.brightness"></b></div><div><span>Pose</span><b x-text="quality.pose"></b></div><div><span>Liveness</span><b x-text="liveness"></b></div></div><button class="primary wide" @click="verify" :disabled="capturing||!bestFrame">Send one best frame</button><div class="hybrid-events"><template x-for="event in events"><div class="hybrid-event" :class="event.type"><span x-text="event.message"></span><small x-text="event.time"></small></div></template></div></div>
           </div>
-          <pre x-show="result" x-text="JSON.stringify(result,null,2)"></pre>
+          <div class="hybrid-result" x-show="result"><div class="section-heading"><p class="eyebrow">SERVER RESULT</p><strong x-text="result&&result.result"></strong></div><p x-text="result&&result.reasonCodes?result.reasonCodes.join(', '):''"></p><pre x-text="JSON.stringify(result,null,2)"></pre></div>
         </article>
       </section>
     </section>
   </div>
 </main>
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-<script src="/js/app.js"></script>
-<script src="/js/live-stream.js"></script>
-<script src="/js/client-embedding.js"></script>
-<script src="/js/method-selection.js"></script>
-<script src="/js/camera-preview-analysis.js"></script>
-</body>
-</html>
+<script src="/js/app.js"></script><script src="/js/live-stream.js"></script><script src="/js/client-embedding.js"></script><script src="/js/method-selection.js"></script><script src="/js/camera-preview-analysis.js"></script><script src="/js/hybrid-best-frame.js"></script>
+</body></html>
