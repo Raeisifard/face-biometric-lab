@@ -24,7 +24,7 @@ public class HybridMultiFrameVerificationService {
     public Outcome verify(String requestId, String referenceId, List<byte[]> frames) {
         long start = System.nanoTime();
         if (frames == null || frames.isEmpty()) {
-            return outcome("INVALID_REQUEST", null, 0, 0, elapsed(start), 0, 0, List.of(), List.of(), List.of("FRAMES_REQUIRED"));
+            return outcome("INVALID_REQUEST", null, 0, 0, elapsed(start), 0, 0, List.of("FRAMES_REQUIRED"));
         }
 
         List<Double> similarities = new ArrayList<>();
