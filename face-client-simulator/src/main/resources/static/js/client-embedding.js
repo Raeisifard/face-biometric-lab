@@ -14,172 +14,27 @@
     return target;
   }
 
-  async function json(url, options) {
-    const response = await fetch(url, options);
-    if (!response.ok) throw new Error(await response.text());
-    return response.json();
-  }
-
-  function imageBlob() {
-    const video = document.getElementById('preview');
-    const canvas = document.createElement('canvas');
-    canvas.width = video.videoWidth || 640;
-    canvas.height = video.videoHeight || 480;
-    canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
-    return new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.82));
-  }
-
-  function drawOverlay(result) {
-    const video = document.getElementById('preview');
-    const canvas = document.getElementById('camera-overlay');
-    if (!video || !canvas) return;
-    const width = video.videoWidth || 640;
-    const height = video.videoHeight || 480;
-    canvas.width = width;
-    canvas.height = height;
-    const context = canvas.getContext('2d');
-    context.clearRect(0, 0, width, height);
-    const detection = result && result.detection;
-    if (!detection || !detection.faceDetected || !detection.box) return;
-    const box = detection.box;
-    const live = result.liveness && result.liveness.frameLooksLive;
-    context.strokeStyle = live ? '#32d583' : '#f5b94c';
-    context.lineWidth = Math.max(3, width / 320);
-    context.strokeRect(box.x, box.y, box.width, box.height);
-    context.font = 'bold 14px sans-serif';
-    context.fillStyle = context.strokeStyle;
-    context.fillText(live ? 'LIVE' : (result.liveness?.status || 'FACE'), box.x, Math.max(18, box.y - 6));
-  }
+  async function json(url, options) { const response = await fetch(url, options); if (!response.ok) throw new Error(await response.text()); return response.json(); }
+  function imageBlob() { const video=document.getElementById('preview');const canvas=document.createElement('canvas');canvas.width=video.videoWidth||640;canvas.height=video.videoHeight||480;canvas.getContext('2d').drawImage(video,0,0,canvas.width,canvas.height);return new Promise(resolve=>canvas.toBlob(resolve,'image/jpeg',.82)); }
+  function drawOverlay(result) { const video=document.getElementById('preview'),canvas=document.getElementById('camera-overlay');if(!video||!canvas)return;const width=video.videoWidth||640,height=video.videoHeight||480;canvas.width=width;canvas.height=height;const context=canvas.getContext('2d');context.clearRect(0,0,width,height);const detection=result&&result.detection;if(!detection||!detection.faceDetected||!detection.box)return;const box=detection.box,live=result.liveness&&result.liveness.frameLooksLive;context.strokeStyle=live?'#32d583':'#f5b94c';context.lineWidth=Math.max(3,width/320);context.strokeRect(box.x,box.y,box.width,box.height);context.font='bold 14px sans-serif';context.fillStyle=context.strokeStyle;context.fillText(live?'LIVE':(result.liveness?.status||'FACE'),box.x,Math.max(18,box.y-6)); }
 
   async function analyze(ui) {
-    if (!state.sessionId || state.busy) return;
-    state.busy = true;
-    try {
-      const blob = await imageBlob();
-      const form = new FormData();
-      form.append('sessionId', state.sessionId);
-      form.append('image', blob, 'client-frame.jpg');
-      const result = await json('/api/v1/simulator/frames', { method: 'POST', body: form });
-      log('frame response', { sessionId: state.sessionId, detection: result.detection, liveness: result.liveness, qualityScore: result.qualityScore });
-      state.frames = result.liveness.acceptedFrames;
-      ui.frames.textContent = state.frames;
-      ui.faces.textContent = result.detection.faceDetected ? result.detection.faceCount : '0';
-      ui.liveness.textContent = result.liveness.liveScore.toFixed(3);
-      ui.motion.textContent = result.liveness.temporalMotion.toFixed(3);
-      ui.quality.textContent = result.qualityScore.toFixed(3);
-      ui.state.textContent = result.liveness.status;
-      ui.pill.textContent = result.liveness.status;
-      ui.feedback.textContent = result.liveness.status;
-      ui.reason.textContent = result.liveness.instruction;
-      ui.verify.disabled = !result.liveness.frameLooksLive;
-      ui.export.disabled = !result.liveness.frameLooksLive;
-      drawOverlay(result);
-    } catch (error) {
-      console.error('[CLIENT_EMBEDDING] frame processing error', error);
-      ui.state.textContent = 'PROCESSING_ERROR';
-      ui.feedback.textContent = 'PROCESSING_ERROR';
-      ui.reason.textContent = error.message;
-    } finally {
-      state.busy = false;
-    }
+    if (!state.sessionId || state.busy) return; state.busy=true;
+    try { const blob=await imageBlob();const form=new FormData();form.append('sessionId',state.sessionId);form.append('image',blob,'client-frame.jpg');const result=await json('/api/v1/simulator/frames',{method:'POST',body:form});log('frame response',{sessionId:state.sessionId,detection:result.detection,liveness:result.liveness,qualityScore:result.qualityScore});state.frames=result.liveness.acceptedFrames;ui.frames.textContent=state.frames;ui.faces.textContent=result.detection.faceDetected?result.detection.faceCount:'0';ui.liveness.textContent=result.liveness.liveScore.toFixed(3);ui.motion.textContent=result.liveness.temporalMotion.toFixed(3);ui.quality.textContent=result.qualityScore.toFixed(3);ui.state.textContent=result.liveness.status;ui.pill.textContent=result.liveness.status;ui.feedback.textContent=result.liveness.status;ui.reason.textContent=result.liveness.instruction;ui.verify.disabled=!result.liveness.frameLooksLive;ui.export.disabled=!result.liveness.frameLooksLive;drawOverlay(result); }
+    catch(error){console.error('[CLIENT_EMBEDDING] frame processing error',error);ui.state.textContent='PROCESSING_ERROR';ui.feedback.textContent='PROCESSING_ERROR';ui.reason.textContent=error.message;}
+    finally{state.busy=false;}
   }
 
-  async function start(ui) {
-    log('starting client session');
-    const result = await json('/api/v1/simulator/sessions', { method: 'POST' });
-    state.sessionId = result.sessionId;
-    state.frames = 0;
-    ui.start.disabled = true;
-    ui.stop.disabled = false;
-    ui.verify.disabled = true;
-    ui.state.textContent = 'COLLECTING';
-    ui.feedback.textContent = 'COLLECTING';
-    ui.reason.textContent = 'Move slowly left and right';
-    state.timer = setInterval(() => analyze(ui), 250);
-    log('client session started', { sessionId: state.sessionId });
-  }
-
-  async function stop(ui) {
-    if (state.timer) clearInterval(state.timer);
-    state.timer = null;
-    ui.stop.disabled = true;
-    ui.start.disabled = false;
-  }
+  async function start(ui) { log('starting client session');const result=await json('/api/v1/simulator/sessions',{method:'POST'});state.sessionId=result.sessionId;state.frames=0;ui.start.disabled=true;ui.stop.disabled=false;ui.verify.disabled=true;ui.state.textContent='COLLECTING';ui.feedback.textContent='COLLECTING';ui.reason.textContent='Move slowly left and right';state.timer=setInterval(()=>analyze(ui),250);log('client session started',{sessionId:state.sessionId}); }
+  async function stop(ui) { if(state.timer)clearInterval(state.timer);state.timer=null;ui.stop.disabled=true;ui.start.disabled=false; }
 
   async function verify(ui) {
-    if (!state.sessionId) return;
-    const blob = await imageBlob();
-    const form = new FormData();
-    form.append('sessionId', state.sessionId);
-    form.append('userId', ui.reference.value || 'user-123');
-    form.append('image', blob, 'client-embedding.jpg');
-    ui.resultStatus.textContent = 'VERIFYING';
-    try {
-      log('submitting client embedding', { sessionId: state.sessionId, userId: ui.reference.value || 'user-123' });
-      const result = await json('/api/v1/simulator/client-verify', { method: 'POST', body: form });
-      log('server verification response', result);
-      ui.resultStatus.textContent = result.matched ? 'MATCH' : 'NO_MATCH';
-      ui.resultStatus.className = 'state-pill client-result-status ' + (result.matched ? 'done' : 'failed');
-      ui.pipeline.forEach(step => { step.className = result.matched ? 'done' : 'failed'; });
-      ui.json.hidden = false;
-      ui.json.textContent = JSON.stringify(result, null, 2);
-    } catch (error) {
-      console.error('[CLIENT_EMBEDDING] server verification error', error);
-      ui.resultStatus.textContent = 'INCONCLUSIVE';
-      ui.resultStatus.className = 'state-pill client-result-status failed';
-      ui.json.hidden = false;
-      ui.json.textContent = error.message;
-    }
+    if(!state.sessionId)return;const blob=await imageBlob();const form=new FormData();form.append('sessionId',state.sessionId);form.append('userId',ui.reference.value||'user-123');form.append('image',blob,'client-embedding.jpg');ui.resultStatus.textContent='VERIFYING';
+    try { log('submitting client embedding',{sessionId:state.sessionId,userId:ui.reference.value||'user-123'});const result=await json('/api/v1/simulator/client-verify',{method:'POST',body:form});log('server verification response',result);const status=result.result||'INCONCLUSIVE';const failed=status==='NO_MATCH'||status==='INVALID_REQUEST'||status==='PROCESSING_ERROR';ui.resultStatus.textContent=status;ui.resultStatus.className='state-pill client-result-status '+(status==='MATCH'?'done':failed?'failed':'pending');ui.pipeline.forEach((step,index)=>{step.className=status==='MATCH'||(status==='NO_MATCH'&&index>1)?'done':failed?'failed':'pending'});ui.json.hidden=false;ui.json.textContent=JSON.stringify(result,null,2); }
+    catch(error){console.error('[CLIENT_EMBEDDING] server verification error',error);ui.resultStatus.textContent='PROCESSING_ERROR';ui.resultStatus.className='state-pill client-result-status failed';ui.json.hidden=false;ui.json.textContent=error.message;}
   }
 
-  async function exportEmbedding(ui) {
-    if (!state.sessionId) return;
-    const blob = await imageBlob();
-    const form = new FormData();
-    form.append('image', blob, 'client-embedding-reference.jpg');
-    const embedding = await json('/api/v1/simulator/client-embedding', { method: 'POST', body: form });
-    const userId = ui.reference.value.trim() || 'user-123';
-    const yaml = [
-      `${userId}:`,
-      `  model-id: ${embedding.modelId}`,
-      `  model-version: ${embedding.modelVersion}`,
-      `  dimension: ${embedding.dimension}`,
-      `  normalized: ${embedding.normalized}`,
-      '  embedding:',
-      ...embedding.embedding.map(value => `    - ${value}`)
-    ].join('\n');
-    console.group('[CLIENT_EMBEDDING] MobileFaceNet reference export');
-    console.info('Copy the YAML block below into face-biometric-service/src/main/resources/biometric-embeddings.yml under biometric.reference-embeddings:');
-    console.log(yaml);
-    console.log('Raw 512-D vector:', embedding.embedding);
-    console.info('Profile:', { modelId: embedding.modelId, modelVersion: embedding.modelVersion, dimension: embedding.dimension, normalized: embedding.normalized });
-    console.groupEnd();
-    ui.json.hidden = false;
-    ui.json.textContent = yaml;
-    ui.resultStatus.textContent = 'EXPORTED TO CONSOLE';
-    ui.resultStatus.className = 'state-pill client-result-status done';
-  }
+  async function exportEmbedding(ui) { if(!state.sessionId)return;const blob=await imageBlob();const form=new FormData();form.append('image',blob,'client-embedding-reference.jpg');const embedding=await json('/api/v1/simulator/client-embedding',{method:'POST',body:form});const userId=ui.reference.value.trim()||'user-123';const yaml=[`${userId}:`,`  model-id: ${embedding.modelId}`,`  model-version: ${embedding.modelVersion}`,`  dimension: ${embedding.dimension}`,`  normalized: ${embedding.normalized}`,'  embedding:',...embedding.embedding.map(value=>`    - ${value}`)].join('\n');console.group('[CLIENT_EMBEDDING] MobileFaceNet reference export');console.info('Copy the YAML block below into face-biometric-service/src/main/resources/biometric-embeddings.yml under biometric.reference-embeddings:');console.log(yaml);console.log('Raw 512-D vector:',embedding.embedding);console.info('Profile:',{modelId:embedding.modelId,modelVersion:embedding.modelVersion,dimension:embedding.dimension,normalized:embedding.normalized});console.groupEnd();ui.json.hidden=false;ui.json.textContent=yaml;ui.resultStatus.textContent='EXPORTED TO CONSOLE';ui.resultStatus.className='state-pill client-result-status done'; }
 
-  document.addEventListener('DOMContentLoaded', () => {
-    const target = panel();
-    const ui = {
-      start: target.querySelector('.client-start'), stop: target.querySelector('.client-stop'), verify: target.querySelector('.client-verify'), export: target.querySelector('.client-export'),
-      reference: target.querySelector('.client-reference'), state: target.querySelector('.client-live-state'), pill: target.querySelector('.client-state-pill'),
-      frames: target.querySelector('.client-frames'), faces: target.querySelector('.client-faces'), quality: target.querySelector('.client-quality'), liveness: target.querySelector('.client-liveness'), motion: target.querySelector('.client-motion'),
-      feedback: target.querySelector('.client-feedback'), reason: target.querySelector('.client-reason'), resultStatus: target.querySelector('.client-result-status'), pipeline: target.querySelectorAll('.client-pipeline span'), json: target.querySelector('.client-json')
-    };
-    window.clientEmbeddingSelect = selected => {
-      target.hidden = selected !== 'CLIENT_EMBEDDING';
-      document.querySelector('.client-nav').classList.toggle('selected', selected === 'CLIENT_EMBEDDING');
-    };
-    ui.start.addEventListener('click', () => start(ui).catch(error => { ui.reason.textContent = error.message; }));
-    ui.stop.addEventListener('click', () => stop(ui));
-    ui.verify.addEventListener('click', () => verify(ui));
-    ui.export.addEventListener('click', () => exportEmbedding(ui).catch(error => {
-      console.error('[CLIENT_EMBEDDING] reference export error', error);
-      ui.resultStatus.textContent = 'EXPORT_ERROR';
-      ui.json.hidden = false;
-      ui.json.textContent = error.message;
-    }));
-  });
+  document.addEventListener('DOMContentLoaded',()=>{const target=panel();const ui={start:target.querySelector('.client-start'),stop:target.querySelector('.client-stop'),verify:target.querySelector('.client-verify'),export:target.querySelector('.client-export'),reference:target.querySelector('.client-reference'),state:target.querySelector('.client-live-state'),pill:target.querySelector('.client-state-pill'),frames:target.querySelector('.client-frames'),faces:target.querySelector('.client-faces'),quality:target.querySelector('.client-quality'),liveness:target.querySelector('.client-liveness'),motion:target.querySelector('.client-motion'),feedback:target.querySelector('.client-feedback'),reason:target.querySelector('.client-reason'),resultStatus:target.querySelector('.client-result-status'),pipeline:target.querySelectorAll('.client-pipeline span'),json:target.querySelector('.client-json')};window.clientEmbeddingSelect=selected=>{target.hidden=selected!=='CLIENT_EMBEDDING';document.querySelector('.client-nav').classList.toggle('selected',selected==='CLIENT_EMBEDDING')};ui.start.addEventListener('click',()=>start(ui).catch(error=>{ui.reason.textContent=error.message;}));ui.stop.addEventListener('click',()=>stop(ui));ui.verify.addEventListener('click',()=>verify(ui));ui.export.addEventListener('click',()=>exportEmbedding(ui).catch(error=>{console.error('[CLIENT_EMBEDDING] reference export error',error);ui.resultStatus.textContent='EXPORT_ERROR';ui.json.hidden=false;ui.json.textContent=error.message;}));});
 })();
