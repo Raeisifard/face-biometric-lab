@@ -17,6 +17,9 @@ simulator:
   liveness-model-path: ${FACE_LIVENESS_MODEL:liveness/2.7_80x80_MiniFASNetV2.onnx}
   recognition-model-id: arcface-512
   recognition-model-version: w600k-r50
+  client-recognition-model-path: ${FACE_CLIENT_RECOGNITION_MODEL:recognition/w600k_mbf.onnx}
+  client-recognition-model-id: mobilefacenet-512
+  client-recognition-model-version: w600k-mbf
   detection-threshold: 0.75
   matching-liveness-threshold: 0.80
   liveness-min-frames: 12

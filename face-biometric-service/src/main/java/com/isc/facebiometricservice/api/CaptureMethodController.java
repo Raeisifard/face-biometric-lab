@@ -18,12 +18,14 @@ public class CaptureMethodController {
     public CaptureMethodResponse captureMethod() {
         return new CaptureMethodResponse(selectedMethod,
             selectedMethod.equals("FREE_METHOD")
-                ? "Client may select Live Stream or Full Clip"
+                        ? "Client may select Live Stream, Full Clip, or Client Embedding"
                 : selectedMethod.equals("LIVE_STREAM")
                 ? "Server selected incremental frame verification"
+                : selectedMethod.equals("CLIENT_EMBEDDING")
+                ? "Client selected local detection, liveness, and embedding"
                 : "Server selected complete clip verification",
             selectedMethod.equals("FREE_METHOD")
-                ? java.util.List.of("LIVE_STREAM", "FULL_CLIP")
+                        ? java.util.List.of("LIVE_STREAM", "FULL_CLIP", "CLIENT_EMBEDDING")
                 : java.util.List.of(selectedMethod));
     }
 

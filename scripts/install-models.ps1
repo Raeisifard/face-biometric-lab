@@ -38,6 +38,18 @@ $found = Get-ChildItem -Path $tmp -Filter "w600k_r50.onnx" -Recurse | Select-Obj
 if (-not $found) { throw "w600k_r50.onnx was not found in buffalo_l.zip" }
 Copy-Item $found.FullName (Join-Path $recDir "w600k_r50.onnx") -Force
 
+$smallZip = Join-Path $env:TEMP "buffalo_s.zip"
+Write-Host "Downloading InsightFace buffalo_s client model package..."
+Invoke-WebRequest `
+  -Uri "https://github.com/deepinsight/insightface/releases/download/model-zoo/buffalo_s.zip" `
+  -OutFile $smallZip
+$smallTmp = Join-Path $env:TEMP "buffalo_s_extract"
+if (Test-Path $smallTmp) { Remove-Item -Recurse -Force $smallTmp }
+Expand-Archive -Path $smallZip -DestinationPath $smallTmp -Force
+$smallFound = Get-ChildItem -Path $smallTmp -Filter "w600k_mbf.onnx" -Recurse | Select-Object -First 1
+if (-not $smallFound) { throw "w600k_mbf.onnx was not found in buffalo_s.zip" }
+Copy-Item $smallFound.FullName (Join-Path $recDir "w600k_mbf.onnx") -Force
+
 Write-Host "Downloading MiniFASNetV2 ONNX..."
 Invoke-WebRequest `
   -Uri "https://raw.githubusercontent.com/QingHeYang/Silent-Face-Anti-Spoofing-onnx/main/onnx/2.7_80x80_MiniFASNetV2.onnx" `

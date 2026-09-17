@@ -4,5 +4,6 @@ public record FrameAnalysis(
         String sessionId,
         FaceDetectionResult detection,
         LivenessFrameResult liveness,
-        boolean embeddingReady
+        boolean embeddingReady,
+        double qualityScore
 ) {}

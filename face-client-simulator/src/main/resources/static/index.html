@@ -19,6 +19,7 @@
       <p class="eyebrow">AVAILABLE METHODS</p>
       <button class="method-nav live-nav" type="button"><span class="method-icon">◉</span><span><strong>Live stream</strong><small>Frame-by-frame</small></span><i class="method-check">●</i></button>
       <button class="method-nav clip-nav" type="button"><span class="method-icon">▣</span><span><strong>Full clip</strong><small>Upload 3–5 seconds</small></span><i class="method-check">●</i></button>
+      <button class="method-nav client-nav" type="button"><span class="method-icon">◎</span><span><strong>Client embedding</strong><small>Local recognition</small></span><i class="method-check">●</i></button>
       <div class="sidebar-note"><span class="lock-icon">◆</span><span class="method-note">The server policy controls method selection.</span></div>
     </aside>
     <section class="workspace">
@@ -31,8 +32,9 @@
       </section>
       <section class="method-content">
         <section class="card live-panel" hidden></section>
+        <section class="card client-panel" hidden></section>
         <article class="card clip-panel" hidden>
-          <div class="section-heading"><div><p class="eyebrow">METHOD 1</p><h2>Complete video clip</h2></div><span class="state-pill">3–5 sec</span></div>
+          <div class="section-heading"><div><p class="eyebrow">FULL CLIP</p><h2>Complete video clip</h2></div><span class="state-pill">3–5 sec</span></div>
           <p class="method-description">Record the complete camera clip first. The server decodes, samples and verifies it after upload.</p>
           <video id="clip" controls></video>
           <div class="metrics"><div><span>Size</span><b x-text="formatBytes(clipSize)"></b></div><div><span>Duration</span><b x-text="clipDuration+' s'"></b></div></div>
@@ -55,6 +57,7 @@
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 <script src="/js/app.js"></script>
 <script src="/js/live-stream.js"></script>
+<script src="/js/client-embedding.js"></script>
 <script src="/js/method-selection.js"></script>
 </body>
 </html>

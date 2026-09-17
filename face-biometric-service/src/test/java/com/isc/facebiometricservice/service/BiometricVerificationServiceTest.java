@@ -15,6 +15,8 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class BiometricVerificationServiceTest {
     private static final int EMBEDDING_DIMENSION = 512;
@@ -57,6 +59,21 @@ class BiometricVerificationServiceTest {
         BiometricVerificationService service = new BiometricVerificationService(repo, matcher, properties);
 
         assertEquals(VerificationStatus.INCONCLUSIVE, service.verify(request(unitVector(0), true)).result());
+    }
+
+    @Test
+    void acceptsTheSeparateMobileFaceNetClientProfile() {
+        FaceMatchingService service = new FaceMatchingService(null, properties, new CosineFaceMatcher());
+
+        assertTrue(service.supportsModel(FaceMatchingService.CLIENT_MODEL_ID, FaceMatchingService.CLIENT_MODEL_VERSION));
+    }
+
+    @Test
+    void rejectsNonFiniteEmbeddingValues() {
+        float[] values = unitVector(0);
+        values[1] = Float.NaN;
+        assertThrows(IllegalArgumentException.class,
+                () -> new FaceEmbedding(values, EMBEDDING_DIMENSION, "arcface-512", "w600k-r50", true));
     }
 
     private VerificationRequest request(float[] values, boolean normalized) {

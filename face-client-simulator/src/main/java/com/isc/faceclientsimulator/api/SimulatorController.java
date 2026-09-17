@@ -27,7 +27,7 @@ public class SimulatorController {
     @GetMapping("/models")
     public ModelsResponse models() {
         log.info("[SIM] Model information requested");
-        return new ModelsResponse("YuNet", "ArcFace/InsightFace w600k_r50", "MiniFASNetV2", 512);
+        return new ModelsResponse("YuNet", "MobileFaceNet w600k_mbf (client); ArcFace w600k_r50 (server modes)", "MiniFASNetV2 + temporal", 512);
     }
 
     @GetMapping("/server-status")
@@ -80,6 +80,33 @@ public class SimulatorController {
         FaceEmbedding embedding=processor.generateEmbedding(image.getBytes());
         log.info("[SIM] Calling biometric service verify user={} model={} dimension={}",userId,embedding.modelId(),embedding.dimension());
         return serverClient.verify(userId,embedding);
+    }
+
+    @PostMapping(value="/client-embedding", consumes=MediaType.MULTIPART_FORM_DATA_VALUE)
+    public FaceEmbeddingResponse clientEmbedding(@RequestPart("image") MultipartFile image) throws Exception {
+        requireImage(image);
+        FaceEmbedding embedding = processor.generateClientEmbedding(image.getBytes());
+        return new FaceEmbeddingResponse(embedding.modelId(), embedding.modelVersion(), embedding.dimension(), embedding.normalized(), embedding.values());
+    }
+
+    @PostMapping(value="/client-verify", consumes=MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ServerVerifyResponse clientVerify(@RequestParam String sessionId, @RequestParam String userId,
+                                             @RequestPart("image") MultipartFile image) throws Exception {
+        requireSession(sessionId); requireImage(image);
+        var analysis = processor.analyze(sessionId, image.getBytes());
+        if (!analysis.liveness().frameLooksLive()) throw new IllegalStateException("Temporal liveness has not passed: " + analysis.liveness().status());
+        FaceEmbedding embedding = processor.generateClientEmbedding(image.getBytes());
+        return serverClient.verifyClient(userId, embedding);
+    }
+
+    @PostMapping(value="/client-enroll", consumes=MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ServerVerifyResponse clientEnroll(@RequestParam String sessionId, @RequestParam String userId,
+                                              @RequestPart("image") MultipartFile image) throws Exception {
+        requireSession(sessionId); requireImage(image);
+        var analysis = processor.analyze(sessionId, image.getBytes());
+        if (!analysis.liveness().frameLooksLive()) throw new IllegalStateException("Temporal liveness has not passed: " + analysis.liveness().status());
+        FaceEmbedding embedding = processor.generateClientEmbedding(image.getBytes());
+        return serverClient.enrollClient(userId, embedding);
     }
 
     private void requireSession(String id){if(!sessions.containsKey(id))throw new IllegalArgumentException("Unknown session: "+id);}

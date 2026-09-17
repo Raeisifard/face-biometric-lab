@@ -63,7 +63,9 @@ public class BiometricController {
     @GetMapping("/models")
     public ModelResponse models() {
         return new ModelResponse(properties.modelId(), properties.modelVersion(), properties.dimension(),
-                properties.algorithm(), properties.threshold());
+            properties.algorithm(), properties.threshold(), java.util.List.of(
+                new ModelProfile(properties.modelId(), properties.modelVersion(), properties.dimension(), "SERVER_VERIFIED"),
+                new ModelProfile(FaceMatchingService.CLIENT_MODEL_ID, FaceMatchingService.CLIENT_MODEL_VERSION, properties.dimension(), "CLIENT_GENERATED")));
     }
 
     private void require(EmbeddingPayload p) {
@@ -72,5 +74,7 @@ public class BiometricController {
             throw new IllegalArgumentException("Embedding must contain " + properties.dimension() + " values");
     }
 
-    public record ModelResponse(String modelId, String modelVersion, int dimension, String algorithm, double threshold) {}
+    public record ModelResponse(String modelId, String modelVersion, int dimension, String algorithm, double threshold,
+                                 java.util.List<ModelProfile> profiles) {}
+    public record ModelProfile(String modelId, String modelVersion, int dimension, String trustBoundary) {}
 }

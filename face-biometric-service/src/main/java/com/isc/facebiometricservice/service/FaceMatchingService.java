@@ -9,6 +9,8 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class FaceMatchingService {
+    public static final String CLIENT_MODEL_ID = "mobilefacenet-512";
+    public static final String CLIENT_MODEL_VERSION = "w600k-mbf";
     private final FaceEmbeddingRepository repository;
     private final BiometricProperties properties;
     private final FaceMatcher matcher;
@@ -40,9 +42,17 @@ public class FaceMatchingService {
                 || e.values().length != properties.dimension()) {
             throw new IllegalArgumentException("Embedding dimension mismatch");
         }
-        if (!properties.modelId().equals(e.modelId()) || !properties.modelVersion().equals(e.modelVersion()))
+        if (!supportsModel(e.modelId(), e.modelVersion()))
             throw new IllegalArgumentException("Model/version mismatch");
         if (properties.normalizedRequired() && !e.normalized())
             throw new IllegalArgumentException("Normalized embedding is required");
+        for (float value : e.values()) {
+            if (!Float.isFinite(value)) throw new IllegalArgumentException("Embedding contains non-finite values");
+        }
+    }
+
+    public boolean supportsModel(String modelId, String modelVersion) {
+        return properties.modelId().equals(modelId) && properties.modelVersion().equals(modelVersion)
+                || CLIENT_MODEL_ID.equals(modelId) && CLIENT_MODEL_VERSION.equals(modelVersion);
     }
 }

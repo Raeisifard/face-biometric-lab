@@ -4,7 +4,7 @@ A two-module Spring Boot project for developing a mobile-style face biometric fl
 
 ## Modules
 
-`face-client-simulator` is the Windows/browser-facing simulator. It uses the browser camera APIs to preview any camera the browser can access, samples frames, performs face detection, MiniFASNet V2 anti-spoofing plus temporal liveness checks, aligns the face and generates a 512-dimensional ArcFace embedding with ONNX Runtime. It can then simulate the request a Flutter app would send to the server.
+`face-client-simulator` is the Windows/browser-facing simulator. It uses the browser camera APIs to preview any camera the browser can access, samples frames, performs face detection, MiniFASNet V2 anti-spoofing plus temporal liveness checks, aligns the face and generates a 512-dimensional client embedding with ONNX Runtime. It can then simulate the request a Flutter app would send to the server.
 
 `face-biometric-service` is the independent server-side service. It accepts a 512-D probe embedding, retrieves a registered reference embedding from Oracle, MongoDB or memory, validates the model/version contract and calculates cosine similarity.
 
@@ -45,11 +45,16 @@ The zip intentionally does not include model binaries. The main public InsightFa
 Initial baseline:
 
 * Face detection: YuNet `face_detection_yunet_2023mar.onnx`
-* Recognition: InsightFace `w600k_r50.onnx` from `buffalo_l` (512-D ArcFace-compatible embedding)
+* Client recognition: `w600k_mbf.onnx` (MobileFaceNet profile, 512-D, RGB normalization approximately `(pixel - 127.5) / 128.0`)
+* Server-mode recognition: InsightFace `w600k_r50.onnx` from `buffalo_l` (512-D ArcFace-compatible embedding)
 * Active/passive anti-spoofing: MiniFASNetV2 `2.7_80x80_MiniFASNetV2.onnx`
 * Temporal liveness: movement challenge + multi-frame anti-spoof aggregation
 
 These are deliberately behind interfaces so SCRFD, alternative ArcFace/AdaFace models, stronger liveness models and other detectors can be added later.
+
+## Client embedding trust boundary
+
+Client Embedding mode performs detection, quality, temporal liveness, alignment, and MobileFaceNet inference in the simulator. The server validates the embedding contract and calculates the final cosine similarity, but it cannot prove that a client-generated embedding was produced by an untampered camera or model. Authenticated sessions, nonce binding, replay prevention, device/app identity, attestation, and model/version policy remain required for production use.
 
 ## Important security note
 

@@ -41,5 +41,17 @@ public class BiometricServerClient {
         return response;
     }
 
+    public ServerVerifyResponse enrollClient(String userId, FaceEmbedding e) {
+        return restClient.post().uri("/api/v1/biometric/enroll-embedding")
+                .body(new ServerEmbeddingPayload(userId, e.values(), e.dimension(), e.modelId(), e.modelVersion(), e.normalized()))
+                .retrieve().body(ServerVerifyResponse.class);
+    }
+
+    public ServerVerifyResponse verifyClient(String userId, FaceEmbedding e) {
+        return restClient.post().uri("/api/v1/biometric/verify-embedding")
+                .body(new ServerEmbeddingPayload(userId, e.values(), e.dimension(), e.modelId(), e.modelVersion(), e.normalized()))
+                .retrieve().body(ServerVerifyResponse.class);
+    }
+
     private record HealthResponse(String status){}
 }

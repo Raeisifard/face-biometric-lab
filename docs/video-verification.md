@@ -1,6 +1,6 @@
 # Server Video Verification
 
-The project supports `FULL_CLIP`, `LIVE_STREAM`, and `FREE_METHOD`. `FULL_CLIP` records a 3–5 second browser clip and uploads the complete clip to `POST /api/v1/biometric/video-verification/verify-clip`. `LIVE_STREAM` creates a session and uploads sampled JPEG frames incrementally through `/api/v1/live-stream/sessions/{sessionId}/frames`. `FREE_METHOD` lets the client select either flow per request.
+The project supports `FULL_CLIP`, `LIVE_STREAM`, `CLIENT_EMBEDDING`, and `FREE_METHOD`. `FULL_CLIP` records a 3–5 second browser clip and uploads the complete clip to `POST /api/v1/biometric/video-verification/verify-clip`. `LIVE_STREAM` creates a session and uploads sampled JPEG frames incrementally through `/api/v1/live-stream/sessions/{sessionId}/frames`. `CLIENT_EMBEDDING` runs the client detector, temporal liveness, and MobileFaceNet profile before sending a 512-D embedding to the server. `FREE_METHOD` lets the client select a flow per request.
 
 Set the server policy with `BIOMETRIC_CAPTURE_METHOD=LIVE_STREAM`, `BIOMETRIC_CAPTURE_METHOD=FULL_CLIP`, or `BIOMETRIC_CAPTURE_METHOD=FREE_METHOD`. The default is `FREE_METHOD`. The simulator reads `GET /api/v1/biometric/capture-method` through its proxy; in free mode the operator selects the flow in the client.
 

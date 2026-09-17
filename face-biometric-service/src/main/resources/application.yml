@@ -12,7 +12,7 @@ spring:
     - org.springframework.boot.autoconfigure.mongo.MongoAutoConfiguration
     - org.springframework.boot.autoconfigure.data.mongo.MongoDataAutoConfiguration
 biometric:
-  capture-method: ${BIOMETRIC_CAPTURE_METHOD:FREE_METHOD} # LIVE_STREAM, FULL_CLIP, or FREE_METHOD
+  capture-method: ${BIOMETRIC_CAPTURE_METHOD:FREE_METHOD} # LIVE_STREAM, FULL_CLIP, CLIENT_EMBEDDING, or FREE_METHOD
   repository-type: property
   model-id: arcface-512
   model-version: w600k-r50
