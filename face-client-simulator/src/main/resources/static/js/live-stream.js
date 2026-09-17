@@ -15,8 +15,8 @@
       '<div class="feedback-box"><span class="feedback-icon">●</span><div><strong class="live-feedback">Waiting for session</strong><small class="live-reason">No server response yet</small></div></div>' +
       '<div class="clip-result live-result"><div class="section-heading"><p class="eyebrow">SERVER PIPELINE</p><span class="state-pill live-result-status">PENDING</span></div>' +
       '<div class="pipeline live-pipeline"><span data-step="upload">Upload</span><span data-step="decode">Decode</span><span data-step="detect">Detect</span><span data-step="quality">Quality</span><span data-step="live">Liveness</span><span data-step="select">Select</span><span data-step="recognition">Recognition</span><span data-step="match">Match</span></div>' +
-      '<div class="clip-result-grid"><div><span>Similarity</span><strong class="live-similarity">-</strong></div><div><span>Liveness</span><strong class="live-liveness">-</strong></div><div><span>Detected faces</span><strong class="live-detected">0</strong></div><div><span>Decoded frames</span><strong class="live-decoded">0</strong></div><div><span>Recognition frames</span><strong class="live-recognition">0</strong></div><div><span>Processing</span><strong class="live-processing">-</strong></div><div><span>Round trip</span><strong class="live-round-trip">-</strong></div></div>' +
-      '<div class="reason-box"><b>Reason codes</b><span class="live-reasons">None</span></div></div>' +
+      '<div class="clip-result-grid"><div><span>Code</span><strong class="live-code">-</strong></div><div><span>Similarity</span><strong class="live-similarity">-</strong></div><div><span>Liveness</span><strong class="live-liveness">-</strong></div><div><span>Decoded frames</span><strong class="live-decoded">0</strong></div><div><span>Recognition frames</span><strong class="live-recognition">0</strong></div><div><span>Processing</span><strong class="live-processing">-</strong></div><div><span>Round trip</span><strong class="live-round-trip">-</strong></div></div>' +
+      '<div class="reason-box"><b>Message</b><span class="live-message">-</span></div><div class="reason-box"><b>Reason codes</b><span class="live-reasons">None</span></div></div>' +
       '<div class="process-columns"><div><p class="eyebrow">PROCESS TIMELINE</p><ul class="live-events"></ul></div><div><p class="eyebrow">FINAL RESULT</p><div class="final-result pending"><strong class="final-status">Pending</strong><small class="final-reason">Capture has not completed</small></div></div></div>';
     return panel;
   }
@@ -53,28 +53,29 @@
     const started = performance.now();
     const result = await json('/api/v1/simulator/live-stream/sessions/' + sessionId + '/complete', { method: 'POST' });
     applyVerificationResult(ui, result, Math.round(performance.now() - started));
-    if (result.result === 'INCONCLUSIVE' || result.processingState === 'RECOGNITION_PENDING') { state.sessionId = sessionId; ui.start.disabled = true; ui.continue.hidden = false; } else { ui.start.disabled = false; }
+    if (result.result === 'INCONCLUSIVE' || result.code === 'RECOGNITION_PENDING' || result.code === 'TEMPORAL_EVIDENCE_PENDING') { state.sessionId = sessionId; ui.start.disabled = true; ui.continue.hidden = false; } else { ui.start.disabled = false; }
     ui.stop.disabled = true;
   }
 
   function applyVerificationResult(ui, result, roundTripMs) {
-    const pending = result.result === 'INCONCLUSIVE' || result.processingState === 'RECOGNITION_PENDING';
-    const failed = result.result === 'NO_MATCH' || (result.finalResult || '').startsWith('VERIFICATION_FAILED');
+    const quality = result.quality || {}; const metrics = result.metrics || {};
+    const pending = result.result === 'INCONCLUSIVE';
+    const failed = result.result === 'NO_MATCH' || result.result === 'INVALID_REQUEST' || result.result === 'PROCESSING_ERROR' || result.code === 'LIVENESS_FAILED';
     const terminal = !pending;
-    ui.serverState.textContent = result.processingState || result.result; ui.pill.textContent = result.processingState || result.result;
-    ui.feedback.textContent = result.result || 'INCONCLUSIVE'; ui.reason.textContent = result.finalResult || 'Server completed processing';
-    ui.status.textContent = result.result || 'PENDING'; ui.status.className = 'state-pill live-result-status ' + (failed ? 'failed' : pending ? 'pending' : 'done');
-    ui.similarity.textContent = result.similarity == null ? '-' : result.similarity; ui.liveness.textContent = result.livenessScore == null ? '-' : result.livenessScore;
-    ui.decoded.textContent = result.decodedFrames ?? 0; ui.recognition.textContent = result.recognitionFrames ?? 0; ui.processing.textContent = result.processingTimeMs ? result.processingTimeMs + ' ms' : '-'; ui.roundTrip.textContent = roundTripMs + ' ms';
+    ui.serverState.textContent = result.result || 'INCONCLUSIVE'; ui.pill.textContent = result.result || 'INCONCLUSIVE';
+    ui.feedback.textContent = result.code || result.result || 'INCONCLUSIVE'; ui.reason.textContent = result.message || 'Server completed processing';
+    ui.code.textContent = result.code || '-'; ui.message.textContent = result.message || '-'; ui.status.textContent = result.result || 'PENDING'; ui.status.className = 'state-pill live-result-status ' + (failed ? 'failed' : pending ? 'pending' : 'done');
+    ui.similarity.textContent = result.similarity == null ? '-' : result.similarity; ui.liveness.textContent = quality.livenessScore == null ? '-' : quality.livenessScore;
+    ui.decoded.textContent = metrics.decodedFrames ?? 0; ui.recognition.textContent = metrics.recognitionFrames ?? 0; ui.processing.textContent = metrics.processingTimeMs ? metrics.processingTimeMs + ' ms' : '-'; ui.roundTrip.textContent = roundTripMs + ' ms';
     ui.reasons.textContent = result.reasonCodes && result.reasonCodes.length ? result.reasonCodes.join(', ') : 'None';
     const steps = pending ? ['upload', 'decode', 'detect', 'quality', 'live', 'select'] : ['upload', 'decode', 'detect', 'quality', 'live', 'select', 'recognition', 'match'];
     ui.pipeline.forEach(step => { step.className = result.reasonCodes?.length && result.reasonCodes.some(code => code.includes(step.dataset.step.toUpperCase())) ? 'failed' : terminal ? 'done' : steps.includes(step.dataset.step) ? 'done' : 'pending'; });
-    ui.final.className = 'final-result ' + (failed ? 'failed' : pending ? 'pending' : 'success'); ui.finalStatus.textContent = failed ? 'Verification failed' : pending ? 'Recognition pending' : 'Verification complete'; ui.finalReason.textContent = result.finalResult || 'No reason supplied';
-    addEvent(ui, result.result || 'VERIFICATION_PENDING', result.finalResult || 'Server completed processing', failed ? 'error' : pending ? 'warning' : 'success');
+    ui.final.className = 'final-result ' + (failed ? 'failed' : pending ? 'pending' : 'success'); ui.finalStatus.textContent = failed ? 'Verification failed' : pending ? 'Recognition pending' : 'Verification complete'; ui.finalReason.textContent = result.message || 'No message supplied';
+    addEvent(ui, result.code || result.result || 'VERIFICATION_PENDING', result.message || 'Server completed processing', failed ? 'error' : pending ? 'warning' : 'success');
   }
 
   document.addEventListener('DOMContentLoaded', async () => {
-    const panel = livePanel(); const ui = { start: panel.querySelector('.live-start'), stop: panel.querySelector('.live-stop'), continue: panel.querySelector('.live-continue'), fps: panel.querySelector('.live-fps'), serverState: panel.querySelector('.live-state'), pill: panel.querySelector('.live-state-pill'), feedback: panel.querySelector('.live-feedback'), reason: panel.querySelector('.live-reason'), frames: panel.querySelector('.live-frames'), bytes: panel.querySelector('.live-bytes'), latency: panel.querySelector('.live-latency'), events: panel.querySelector('.live-events'), final: panel.querySelector('.final-result'), finalStatus: panel.querySelector('.final-status'), finalReason: panel.querySelector('.final-reason'), status: panel.querySelector('.live-result-status'), similarity: panel.querySelector('.live-similarity'), liveness: panel.querySelector('.live-liveness'), detected: panel.querySelector('.live-detected'), decoded: panel.querySelector('.live-decoded'), recognition: panel.querySelector('.live-recognition'), processing: panel.querySelector('.live-processing'), roundTrip: panel.querySelector('.live-round-trip'), reasons: panel.querySelector('.live-reasons'), pipeline: panel.querySelectorAll('.live-pipeline span') };
+    const panel = livePanel(); const ui = { start: panel.querySelector('.live-start'), stop: panel.querySelector('.live-stop'), continue: panel.querySelector('.live-continue'), fps: panel.querySelector('.live-fps'), serverState: panel.querySelector('.live-state'), pill: panel.querySelector('.live-state-pill'), feedback: panel.querySelector('.live-feedback'), reason: panel.querySelector('.live-reason'), frames: panel.querySelector('.live-frames'), bytes: panel.querySelector('.live-bytes'), latency: panel.querySelector('.live-latency'), events: panel.querySelector('.live-events'), final: panel.querySelector('.final-result'), finalStatus: panel.querySelector('.final-status'), finalReason: panel.querySelector('.final-reason'), status: panel.querySelector('.live-result-status'), code: panel.querySelector('.live-code'), message: panel.querySelector('.live-message'), similarity: panel.querySelector('.live-similarity'), liveness: panel.querySelector('.live-liveness'), detected: panel.querySelector('.live-detected'), decoded: panel.querySelector('.live-decoded'), recognition: panel.querySelector('.live-recognition'), processing: panel.querySelector('.live-processing'), roundTrip: panel.querySelector('.live-round-trip'), reasons: panel.querySelector('.live-reasons'), pipeline: panel.querySelectorAll('.live-pipeline span') };
     try {
       const method = await json('/api/v1/simulator/live-stream/capture-method'); state.method = method.selectedMethod; document.querySelector('.method-badge').textContent = state.method === 'LIVE_STREAM' ? 'LIVE STREAM ACTIVE' : 'FULL CLIP ACTIVE';
       document.querySelector('.live-nav').classList.toggle('selected', state.method === 'LIVE_STREAM'); document.querySelector('.clip-nav').classList.toggle('selected', state.method === 'FULL_CLIP');
