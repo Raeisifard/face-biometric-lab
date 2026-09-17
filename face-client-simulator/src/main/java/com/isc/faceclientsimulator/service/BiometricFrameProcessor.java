@@ -41,7 +41,7 @@ public class BiometricFrameProcessor {
             log.info("[SIM_PIPELINE] session={} detection faceDetected={} faceCount={} confidence={} box={} processingMs={}", sessionId, detection.faceDetected(), detection.faceCount(), detection.confidence(), detection.box(), detection.processingTimeMs());
             if(!detection.faceDetected()) {
                 TemporalLivenessEngine.Result r=temporal.accept(sessionId,detection,0);
-                return new FrameAnalysis(sessionId,detection,toDto(r,0,System.nanoTime()-started),false,0);
+                return new FrameAnalysis(sessionId,detection,toDto(r,System.nanoTime()-started),false,0);
             }
             double qualityScore = quality(image, detection);
             if (qualityScore < MIN_QUALITY_SCORE) {
@@ -51,8 +51,8 @@ public class BiometricFrameProcessor {
             }
             double liveScore=liveness.liveScore(image,detection.box());
             TemporalLivenessEngine.Result r=temporal.accept(sessionId,detection,liveScore);
-            log.info("[SIM_PIPELINE] session={} quality={} frameLiveness={} temporalStatus={} temporalMotion={} acceptedFrames={} live={} totalMs={}", sessionId, qualityScore, liveScore, r.status(), r.temporalMotion(), r.acceptedFrames(), r.live(), (System.nanoTime()-started)/1_000_000);
-            return new FrameAnalysis(sessionId,detection,toDto(r,liveScore,System.nanoTime()-started),r.live(),qualityScore);
+            log.info("[SIM_PIPELINE] session={} quality={} frameLiveness={} aggregateLiveness={} temporalStatus={} temporalMotion={} acceptedFrames={} live={} totalMs={}", sessionId, qualityScore, liveScore, r.avgLiveScore(), r.status(), r.temporalMotion(), r.acceptedFrames(), r.live(), (System.nanoTime()-started)/1_000_000);
+            return new FrameAnalysis(sessionId,detection,toDto(r,System.nanoTime()-started),r.live(),qualityScore);
         } finally { image.release(); }
     }
 
@@ -76,8 +76,8 @@ public class BiometricFrameProcessor {
         } finally { image.release(); }
     }
 
-    private LivenessFrameResult toDto(TemporalLivenessEngine.Result r,double liveScore,long nanos) {
-        return new LivenessFrameResult(r.status(),r.live(),liveScore,r.temporalMotion(),r.acceptedFrames(),r.requiredFrames(),r.instruction(),nanos/1_000_000);
+    private LivenessFrameResult toDto(TemporalLivenessEngine.Result r,long nanos) {
+        return new LivenessFrameResult(r.status(),r.live(),r.avgLiveScore(),r.temporalMotion(),r.acceptedFrames(),r.requiredFrames(),r.instruction(),nanos/1_000_000);
     }
 
     private double quality(Mat image, FaceDetectionResult detection) {

@@ -26,7 +26,7 @@ public class MiniFasNetV2LivenessModel {
         this.properties = properties;
         this.onnx = new OnnxSession(properties.modelsDir(), properties.livenessModelPath());
 
-        log.info("MiniFASNetV2 model initialized: path={}, inputName={}, outputName={}, expectedInputShape=[1,3,80,80], expectedInputRange=[0,1], expectedOutputClasses=3",
+        log.info("MiniFASNetV2 model initialized: path={}, inputName={}, outputName={}, expectedInputShape=[1,3,80,80], expectedInputRange=[0,255] BGR, expectedOutputClasses=3",
                 onnx.resolvedModelPath(), onnx.session().getInputNames().iterator().next(),
                 onnx.session().getOutputNames().iterator().next());
     }
@@ -63,8 +63,8 @@ public class MiniFasNetV2LivenessModel {
             throw new IllegalStateException("MiniFASNetV2 input must contain exactly " + INPUT_ELEMENTS + " float values");
         }
         for (float value : input) {
-            if (!Float.isFinite(value) || value < 0.0f || value > 1.0f) {
-                throw new IllegalStateException("MiniFASNetV2 input values must be finite and in [0,1]");
+            if (!Float.isFinite(value) || value < 0.0f || value > 255.0f) {
+                throw new IllegalStateException("MiniFASNetV2 input values must be finite and in [0,255]");
             }
         }
     }
@@ -110,7 +110,7 @@ public class MiniFasNetV2LivenessModel {
 
         Mat f = new Mat();
         try {
-            image.convertTo(f, CvType.CV_32FC3, 1.0 / 255.0);
+            image.convertTo(f, CvType.CV_32FC3);
             float[] hwc = new float[INPUT_ELEMENTS];
             f.get(0, 0, hwc);
             float[] chw = new float[INPUT_ELEMENTS];
