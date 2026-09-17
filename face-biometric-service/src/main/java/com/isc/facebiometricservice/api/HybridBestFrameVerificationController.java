@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @RestController
 @RequestMapping("/api/v1/biometric/hybrid-verification")
@@ -68,9 +69,7 @@ public class HybridBestFrameVerificationController {
             return invalid(requestId, referenceId, "INVALID_IMAGE_TYPE");
         }
 
-        // The session is single-use. Mark it consumed before inference so a replay
-        // cannot submit the same selected frame twice, even if processing fails.
-        if (!consume(sessionId, session)) {
+        if (!consume(sessionId)) {
             return invalid(requestId, referenceId, "SESSION_REPLAYED");
         }
 
@@ -90,7 +89,8 @@ public class HybridBestFrameVerificationController {
         } catch (IllegalArgumentException e) {
             log.warn("Hybrid verification rejected: requestId={}, sessionId={}, referenceId={}, reason={}",
                     requestId, sessionId, referenceId, e.getMessage());
-            return invalid(requestId, referenceId, reason(e.getMessage()));
+            return new HybridVerificationResponse(requestId, sessionId, referenceId,
+                    Status.INVALID_REQUEST, null, null, null, 0, List.of(reason(e.getMessage())));
         } catch (Exception e) {
             log.error("Hybrid verification processing error: requestId={}, sessionId={}, referenceId={}",
                     requestId, sessionId, referenceId, e);
@@ -99,10 +99,16 @@ public class HybridBestFrameVerificationController {
         }
     }
 
-    private boolean consume(String sessionId, Session expected) {
-        return sessions.computeIfPresent(sessionId, (id, current) ->
-                current.consumed() ? current : new Session(current.sessionId(), current.referenceId(), current.expiresAt(), true)) != null
-                && sessions.get(sessionId).consumed();
+    private boolean consume(String sessionId) {
+        AtomicBoolean accepted = new AtomicBoolean(false);
+        sessions.computeIfPresent(sessionId, (id, current) -> {
+            if (current.consumed()) {
+                return current;
+            }
+            accepted.set(true);
+            return new Session(current.sessionId(), current.referenceId(), current.expiresAt(), true);
+        });
+        return accepted.get();
     }
 
     private HybridVerificationResponse invalid(String requestId, String referenceId, String reason) {
