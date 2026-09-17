@@ -54,53 +54,53 @@ public class VideoVerificationController {
         if (!"FULL_CLIP".equals(selectedMethod)
                 || !("FULL_CLIP".equalsIgnoreCase(configuredCaptureMethod) || "FREE_METHOD".equalsIgnoreCase(configuredCaptureMethod))) {
             return response(id, referenceId, selectedMethod, VerificationStatus.INVALID_REQUEST,
-                    "CAPTURE_MODE_NOT_ALLOWED", "The requested capture mode is not enabled.", null, null, null, null, null, List.of("CAPTURE_MODE_NOT_ALLOWED"));
+                    "CAPTURE_MODE_NOT_ALLOWED", "The requested capture mode is not enabled.", null, null, null, null, List.of("CAPTURE_MODE_NOT_ALLOWED"));
         }
         if (!properties.enabled()) {
             return response(id, referenceId, selectedMethod, VerificationStatus.INCONCLUSIVE,
-                    "VIDEO_VERIFICATION_DISABLED", "Video verification is currently disabled.", null, null, null, null, null, List.of("VIDEO_VERIFICATION_DISABLED"));
+                    "VIDEO_VERIFICATION_DISABLED", "Video verification is currently disabled.", null, null, null, null, List.of("VIDEO_VERIFICATION_DISABLED"));
         }
         if (clip == null || clip.isEmpty()) {
             return response(id, referenceId, selectedMethod, VerificationStatus.INVALID_REQUEST,
-                    "INVALID_VIDEO", "A non-empty video clip is required.", null, null, null, null, null, List.of("INVALID_VIDEO"));
+                    "INVALID_VIDEO", "A non-empty video clip is required.", null, null, null, null, List.of("INVALID_VIDEO"));
         }
         if (clip.getSize() > properties.maxClipBytes()) {
             return response(id, referenceId, selectedMethod, VerificationStatus.INVALID_REQUEST,
-                    "VIDEO_TOO_LARGE", "The uploaded video exceeds the configured size limit.", null, null, null, null, null, List.of("VIDEO_TOO_LARGE"));
+                    "VIDEO_TOO_LARGE", "The uploaded video exceeds the configured size limit.", null, null, null, null, List.of("VIDEO_TOO_LARGE"));
         }
 
         try {
             var decoded = decoder.decode(clip, properties.sampleFps(), referenceId);
             var outcome = engine.verify(id, decoded, referenceId);
+            VerificationStatus status = VerificationStatus.valueOf(outcome.result());
             String code = primaryCode(outcome.result(), outcome.reasons());
-            String message = message(outcome.result(), code);
+            String message = message(status, code);
             VerificationResponse.QualityLiveness quality = new VerificationResponse.QualityLiveness(null, null, outcome.livenessScore());
             VerificationResponse.Metrics metrics = new VerificationResponse.Metrics(
                     outcome.processingMs(), outcome.decodedFrames(), outcome.recognitionFrames(), clip.getSize());
-            return response(id, referenceId, selectedMethod, VerificationStatus.valueOf(outcome.result()), code, message,
-                    outcome.similarity(), biometricProperties.threshold(), quality, metrics, List.of(code), outcome.reasons());
+            return response(id, referenceId, selectedMethod, status, code, message,
+                    outcome.similarity(), outcome.reasons(), quality, metrics);
         } catch (IllegalArgumentException e) {
             String code = reason(e.getMessage());
             log.warn("[VIDEO][REJECTED] requestId={} referenceId={} code={}", id, referenceId, code);
-            return response(id, referenceId, selectedMethod, VerificationStatus.INVALID_REQUEST, code, message(VerificationStatus.INVALID_REQUEST, code),
-                    null, null, null, null, null, List.of(code));
+            return response(id, referenceId, selectedMethod, VerificationStatus.INVALID_REQUEST, code,
+                    message(VerificationStatus.INVALID_REQUEST, code), null, List.of(code), null, null);
         } catch (Exception e) {
             log.error("[VIDEO][PROCESSING_ERROR] requestId={} referenceId={}", id, referenceId, e);
             return response(id, referenceId, selectedMethod, VerificationStatus.PROCESSING_ERROR, "MODEL_ERROR",
-                    "Biometric verification could not be completed.", null, null, null, null, null, List.of("MODEL_ERROR"));
+                    "Biometric verification could not be completed.", null, List.of("MODEL_ERROR"), null, null);
         }
     }
 
     private VerificationResponse response(String requestId, String referenceId, String method,
                                            VerificationStatus status, String code, String message,
-                                           Double similarity, Double threshold,
+                                           Double similarity, List<String> reasons,
                                            VerificationResponse.QualityLiveness quality,
-                                           VerificationResponse.Metrics metrics,
-                                           List<String> ignored, List<String> reasons) {
+                                           VerificationResponse.Metrics metrics) {
         int httpStatus = status == VerificationStatus.INVALID_REQUEST ? 400
                 : status == VerificationStatus.PROCESSING_ERROR ? 500 : 200;
         return new VerificationResponse(requestId, referenceId, method, status, code, message, httpStatus,
-                similarity, threshold == null ? biometricProperties.threshold() : threshold,
+                similarity, biometricProperties.threshold(),
                 new VerificationResponse.ModelMetadata(biometricProperties.modelId(), biometricProperties.modelVersion(),
                         biometricProperties.dimension(), matcher.algorithm()),
                 quality == null ? new VerificationResponse.QualityLiveness(null, null, null) : quality,
