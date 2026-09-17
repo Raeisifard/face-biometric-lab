@@ -8,6 +8,7 @@ import com.isc.facebiometricservice.util.EmbeddingFileWriter;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -32,8 +33,8 @@ public class BiometricController {
     }
 
     @PostMapping("/verify")
-    public VerificationResponse verify(@Valid @RequestBody VerificationRequest request) {
-        return verificationService.verify(request);
+    public ResponseEntity<VerificationResponse> verify(@Valid @RequestBody VerificationRequest request) {
+        return toHttp(verificationService.verify(request));
     }
 
     @PostMapping("/enroll-embedding")
@@ -52,7 +53,7 @@ public class BiometricController {
     }
 
     @PostMapping("/verify-embedding")
-    public VerificationResponse verifyLegacy(@Valid @RequestBody EmbeddingPayload p) {
+    public ResponseEntity<VerificationResponse> verifyLegacy(@Valid @RequestBody EmbeddingPayload p) {
         require(p);
         String requestId = UUID.randomUUID().toString();
         VerificationRequest request = new VerificationRequest(
@@ -65,7 +66,7 @@ public class BiometricController {
         VerificationResponse response = verificationService.verify(request);
         log.info("[BIOMETRIC][VERIFY_EMBEDDING] requestId={} referenceId={} result={} code={} similarity={}",
                 requestId, p.userId(), response.result(), response.code(), response.similarity());
-        return response;
+        return toHttp(response);
     }
 
     @GetMapping("/models")
@@ -74,6 +75,10 @@ public class BiometricController {
             properties.algorithm(), properties.threshold(), java.util.List.of(
                 new ModelProfile(properties.modelId(), properties.modelVersion(), properties.dimension(), "SERVER_VERIFIED"),
                 new ModelProfile(FaceMatchingService.CLIENT_MODEL_ID, FaceMatchingService.CLIENT_MODEL_VERSION, properties.dimension(), "CLIENT_GENERATED")));
+    }
+
+    private ResponseEntity<VerificationResponse> toHttp(VerificationResponse response) {
+        return ResponseEntity.status(response.httpStatus()).body(response);
     }
 
     private void require(EmbeddingPayload p) {
