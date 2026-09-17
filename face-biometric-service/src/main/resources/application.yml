@@ -45,6 +45,14 @@ biometric:
     detector-model-path: ${BIOMETRIC_DETECTOR_MODEL_PATH:../models/detector/face_detection_yunet_2023mar.onnx}
     liveness-model-path: ${BIOMETRIC_LIVENESS_MODEL_PATH:../models/liveness/2.7_80x80_MiniFASNetV2.onnx}
     recognition-model-path: ${BIOMETRIC_MODEL_PATH:../models/recognition/w600k_r50.onnx}
+  hybrid-multi-frame:
+    enabled: ${BIOMETRIC_HYBRID_MULTI_FRAME_ENABLED:true}
+    default-frames: ${BIOMETRIC_HYBRID_MULTI_FRAME_DEFAULT:4}
+    max-frames: ${BIOMETRIC_HYBRID_MULTI_FRAME_MAX:8}
+    max-frame-bytes: ${BIOMETRIC_HYBRID_MULTI_FRAME_MAX_FRAME_BYTES:8388608}
+    session-ttl-seconds: ${BIOMETRIC_HYBRID_MULTI_FRAME_SESSION_TTL:120}
+    liveness-mode: ${BIOMETRIC_HYBRID_MULTI_FRAME_LIVENESS:PASSIVE}
+    aggregation: ${BIOMETRIC_HYBRID_MULTI_FRAME_AGGREGATION:MEAN}
 management.endpoints.web.exposure.include: health,info
 logging:
   level:
