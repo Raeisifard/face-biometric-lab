@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 @Service
 public class LiveStreamSessionManager {
+    private static final int MINIMUM_RECOGNITION_FRAMES = 5;
     private final Duration sessionTtl;
     private final Map<String, VerificationSession> sessions = new ConcurrentHashMap<>();
     private final Map<String, FrameFeedback> latestFeedbackBySession = new ConcurrentHashMap<>();
@@ -99,7 +100,9 @@ public class LiveStreamSessionManager {
         if (!"LIVE_STREAM".equalsIgnoreCase(session.expectedCaptureMode())) {
             throw new IllegalStateException("Session capture mode does not accept live frames");
         }
-        if (!"CAPTURING".equals(session.processingState()) && !"LIVENESS_ANALYSIS".equals(session.processingState())) {
+        if (!"CAPTURING".equals(session.processingState())
+            && !"LIVENESS_ANALYSIS".equals(session.processingState())
+            && !"RECOGNITION_PENDING".equals(session.processingState())) {
             throw new IllegalStateException("Session is no longer accepting frames: " + session.processingState());
         }
     }
@@ -129,19 +132,26 @@ public class LiveStreamSessionManager {
                 ? "VERIFICATION_FAILED: NO_FRAME"
                 : switch (latest.code()) {
                     case "NO_FACE", "MULTIPLE_FACES", "INVALID_FRAME" -> "VERIFICATION_FAILED: " + latest.code();
-                    default -> "VERIFICATION_INCONCLUSIVE: RECOGNITION_PENDING";
+                    default -> frameCount >= MINIMUM_RECOGNITION_FRAMES
+                            ? "VERIFICATION_COMPLETE: RECOGNITION_SUCCESS"
+                            : "VERIFICATION_INCONCLUSIVE: RECOGNITION_PENDING";
                 };
+        String processingState = finalResult.endsWith("RECOGNITION_PENDING")
+                ? "RECOGNITION_PENDING" : "VERIFICATION_COMPLETE";
         VerificationSession updated = new VerificationSession(
                 session.sessionId(),
                 session.customerReferenceId(),
                 session.startTime(),
                 session.expirationTime(),
                 session.expectedCaptureMode(),
-                "VERIFICATION_COMPLETE",
+                processingState,
                 finalResult
         );
         sessions.put(sessionId, updated);
-            latestFeedbackBySession.put(sessionId, new FrameFeedback(finalResult.startsWith("VERIFICATION_FAILED") ? "VERIFICATION_FAILED" : "VERIFICATION_COMPLETE", finalResult, "VERIFICATION_COMPLETE"));
+            latestFeedbackBySession.put(sessionId, new FrameFeedback(
+                finalResult.startsWith("VERIFICATION_FAILED") ? "VERIFICATION_FAILED"
+                    : finalResult.endsWith("RECOGNITION_PENDING") ? "RECOGNITION_PENDING" : "VERIFICATION_COMPLETE",
+                finalResult, processingState));
     }
 
     public FrameFeedback getLatestFeedback(String sessionId) {

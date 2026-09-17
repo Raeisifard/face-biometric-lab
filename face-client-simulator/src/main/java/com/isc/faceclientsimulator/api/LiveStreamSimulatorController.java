@@ -20,8 +20,9 @@ public class LiveStreamSimulatorController {
     }
 
     @PostMapping("/sessions")
-    public Object createSession(@RequestParam String referenceId) {
-        return client.createSession(referenceId);
+    public Object createSession(@RequestParam String referenceId,
+                                @RequestParam(defaultValue = "LIVE_STREAM") String captureMethod) {
+        return client.createSession(referenceId, captureMethod);
     }
 
     @PostMapping(value = "/sessions/{sessionId}/frames", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

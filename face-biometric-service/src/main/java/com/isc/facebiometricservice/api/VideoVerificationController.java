@@ -20,10 +20,11 @@ public class VideoVerificationController {
  public VideoVerificationController(VideoVerificationProperties p,VideoClipDecoder decoder,VideoVerificationEngine engine,
                                     @Value("${biometric.capture-method:LIVE_STREAM}") String captureMethod){this.p=p;this.decoder=decoder;this.engine=engine;this.captureMethod=captureMethod;}
  @PostMapping(value="/verify-clip",consumes=MediaType.MULTIPART_FORM_DATA_VALUE)
- public VideoVerificationResponse verify(@RequestParam(required=false)String requestId,@RequestParam String referenceId,@RequestPart("clip")MultipartFile clip){
+ public VideoVerificationResponse verify(@RequestParam(required=false)String requestId,@RequestParam String referenceId,@RequestParam(required=false)String captureMethod,@RequestPart("clip")MultipartFile clip){
    String id=requestId==null||requestId.isBlank()?UUID.randomUUID().toString():requestId;
    log.info("Video verification request: requestId={}, referenceId={}, filename={}, contentType={}, bytes={}",id,referenceId,clip==null?null:clip.getOriginalFilename(),clip==null?null:clip.getContentType(),clip==null?0:clip.getSize());
-  if(!"FULL_CLIP".equalsIgnoreCase(captureMethod))return VideoVerificationResponse.invalid(id,referenceId,"CAPTURE_MODE_NOT_ALLOWED");
+  String selectedMethod = captureMethod == null || captureMethod.isBlank() ? this.captureMethod : captureMethod.toUpperCase();
+  if(!"FULL_CLIP".equals(selectedMethod) || !("FULL_CLIP".equalsIgnoreCase(this.captureMethod) || "FREE_METHOD".equalsIgnoreCase(this.captureMethod)))return VideoVerificationResponse.invalid(id,referenceId,"CAPTURE_MODE_NOT_ALLOWED");
   if(!p.enabled()){log.warn("Video verification disabled: requestId={}",id);return VideoVerificationResponse.inconclusive(id,referenceId,"VIDEO_VERIFICATION_DISABLED");}
    if(clip==null||clip.isEmpty()){log.warn("Video verification rejected empty upload: requestId={}, referenceId={}",id,referenceId);return VideoVerificationResponse.invalid(id,referenceId,"INVALID_VIDEO");}
    if(clip.getSize()>p.maxClipBytes()){log.warn("Video verification rejected oversized upload: requestId={}, bytes={}, maxBytes={}",id,clip.getSize(),p.maxClipBytes());return VideoVerificationResponse.invalid(id,referenceId,"VIDEO_TOO_LARGE");}

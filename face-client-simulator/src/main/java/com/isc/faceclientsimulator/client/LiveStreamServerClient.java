@@ -18,10 +18,10 @@ public class LiveStreamServerClient {
         return rest.get().uri("/api/v1/biometric/capture-method").retrieve().body(Object.class);
     }
 
-    public Object createSession(String referenceId) {
+    public Object createSession(String referenceId, String captureMethod) {
         return rest.post().uri(uri -> uri.path("/api/v1/live-stream/sessions")
                 .queryParam("customerReferenceId", referenceId)
-                .queryParam("expectedCaptureMode", "LIVE_STREAM").build())
+                .queryParam("expectedCaptureMode", captureMethod).build())
                 .retrieve().body(Object.class);
     }
 

@@ -9,22 +9,31 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.beans.factory.annotation.Value;
 
 @RestController
 @RequestMapping("/api/v1/live-stream")
 public class LiveStreamController {
     private static final Logger log = LoggerFactory.getLogger(LiveStreamController.class);
     private final LiveStreamSessionManager sessionManager;
+    private final String configuredCaptureMethod;
 
-    public LiveStreamController(LiveStreamSessionManager sessionManager) {
+    public LiveStreamController(LiveStreamSessionManager sessionManager,
+                                @Value("${biometric.capture-method:LIVE_STREAM}") String configuredCaptureMethod) {
         this.sessionManager = sessionManager;
+        this.configuredCaptureMethod = configuredCaptureMethod.toUpperCase();
     }
 
     @PostMapping("/sessions")
     public SessionResponse createSession(@RequestParam(required = false) String customerReferenceId,
                                         @RequestParam(defaultValue = "LIVE_STREAM") String expectedCaptureMode) {
+        String selectedMethod = expectedCaptureMode.toUpperCase();
+        if (!"LIVE_STREAM".equals(selectedMethod)
+                || !("LIVE_STREAM".equals(configuredCaptureMethod) || "FREE_METHOD".equals(configuredCaptureMethod))) {
+            throw new IllegalArgumentException("CAPTURE_MODE_NOT_ALLOWED");
+        }
         String referenceId = customerReferenceId == null || customerReferenceId.isBlank() ? "anonymous" : customerReferenceId;
-        VerificationSession session = sessionManager.createSession(referenceId, expectedCaptureMode);
+        VerificationSession session = sessionManager.createSession(referenceId, selectedMethod);
         log.info("Live stream session created: sessionId={}, customerReferenceId={}, captureMode={}", session.sessionId(), referenceId, expectedCaptureMode);
         return new SessionResponse(session.sessionId(), session.customerReferenceId(), session.expectedCaptureMode(), session.processingState(), session.expirationTime());
     }

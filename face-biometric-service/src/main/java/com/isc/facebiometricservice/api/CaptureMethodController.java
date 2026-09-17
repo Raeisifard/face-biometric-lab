@@ -17,11 +17,16 @@ public class CaptureMethodController {
     @GetMapping("/capture-method")
     public CaptureMethodResponse captureMethod() {
         return new CaptureMethodResponse(selectedMethod,
-                selectedMethod.equals("LIVE_STREAM")
-                        ? "Server selected incremental frame verification"
-                        : "Server selected complete clip verification");
+            selectedMethod.equals("FREE_METHOD")
+                ? "Client may select Live Stream or Full Clip"
+                : selectedMethod.equals("LIVE_STREAM")
+                ? "Server selected incremental frame verification"
+                : "Server selected complete clip verification",
+            selectedMethod.equals("FREE_METHOD")
+                ? java.util.List.of("LIVE_STREAM", "FULL_CLIP")
+                : java.util.List.of(selectedMethod));
     }
 
-    public record CaptureMethodResponse(String selectedMethod, String message) {
+    public record CaptureMethodResponse(String selectedMethod, String message, java.util.List<String> availableMethods) {
     }
 }

@@ -28,7 +28,7 @@ class LiveStreamSessionManagerTest {
     }
 
     @Test
-    void recordsFeedbackAndCompletesCapture() {
+    void keepsRecognitionPendingUntilEnoughFramesArrive() {
         LiveStreamSessionManager manager = new LiveStreamSessionManager(Duration.ofMinutes(2));
         VerificationSession session = manager.createSession("customer-002", "LIVE_STREAM");
 
@@ -43,8 +43,16 @@ class LiveStreamSessionManagerTest {
         manager.markCaptureComplete(session.sessionId());
         VerificationSession updated = manager.getSession(session.sessionId());
 
-        assertEquals("VERIFICATION_COMPLETE", updated.processingState());
+        assertEquals("RECOGNITION_PENDING", updated.processingState());
         assertEquals("VERIFICATION_INCONCLUSIVE: RECOGNITION_PENDING", updated.finalResult());
-        assertEquals("VERIFICATION_COMPLETE", manager.getLatestFeedback(session.sessionId()).code());
+        assertEquals("RECOGNITION_PENDING", manager.getLatestFeedback(session.sessionId()).code());
+
+        manager.recordFrame(session.sessionId(), new byte[] {1, 2, 3, 4});
+        manager.recordFrame(session.sessionId(), new byte[] {1, 2, 3, 4});
+        manager.recordFrame(session.sessionId(), new byte[] {1, 2, 3, 4});
+        manager.markCaptureComplete(session.sessionId());
+
+        assertEquals("VERIFICATION_COMPLETE", manager.getSession(session.sessionId()).processingState());
+        assertEquals("VERIFICATION_COMPLETE: RECOGNITION_SUCCESS", manager.getSession(session.sessionId()).finalResult());
     }
 }
