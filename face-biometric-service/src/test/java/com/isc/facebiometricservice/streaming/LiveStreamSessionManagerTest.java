@@ -3,8 +3,10 @@ package com.isc.facebiometricservice.streaming;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
+import java.util.Optional;
 
 class LiveStreamSessionManagerTest {
 
@@ -117,5 +119,21 @@ class LiveStreamSessionManagerTest {
 
         assertEquals("MATCH", manager.getSession(session.sessionId()).result());
         assertEquals("VERIFICATION_COMPLETE: RECOGNITION_SUCCESS", manager.getSession(session.sessionId()).finalResult());
+    }
+
+    @Test
+    void unknownReferenceCannotCompleteSuccessfully() {
+        LiveStreamSessionManager manager = new LiveStreamSessionManager(
+                frame -> new LiveFrameAnalyzer.Analysis("GOOD_FRAME", "Accepted", 0.95, 1, 0.08, true),
+                (referenceId, modelId, modelVersion) -> Optional.empty(),
+                null);
+        VerificationSession session = manager.createSession("missing-user", "LIVE_STREAM");
+
+        for (int i = 0; i < 5; i++) manager.recordFrame(session.sessionId(), new byte[] {1});
+        manager.markCaptureComplete(session.sessionId());
+
+        assertEquals("INCONCLUSIVE", manager.getSession(session.sessionId()).result());
+        assertEquals("VERIFICATION_INCONCLUSIVE: REFERENCE_NOT_FOUND", manager.getSession(session.sessionId()).finalResult());
+        assertEquals(List.of("REFERENCE_NOT_FOUND"), manager.getSession(session.sessionId()).reasonCodes());
     }
 }
