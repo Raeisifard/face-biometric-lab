@@ -1,5 +1,6 @@
 (function () {
   const state = { sessionId: null, timer: null, busy: false, frames: 0 };
+  const log = (...values) => console.info('[CLIENT_EMBEDDING]', ...values);
 
   function panel() {
     const target = document.querySelector('.client-panel');
@@ -28,6 +29,28 @@
     return new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.82));
   }
 
+  function drawOverlay(result) {
+    const video = document.getElementById('preview');
+    const canvas = document.getElementById('camera-overlay');
+    if (!video || !canvas) return;
+    const width = video.videoWidth || 640;
+    const height = video.videoHeight || 480;
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext('2d');
+    context.clearRect(0, 0, width, height);
+    const detection = result && result.detection;
+    if (!detection || !detection.faceDetected || !detection.box) return;
+    const box = detection.box;
+    const live = result.liveness && result.liveness.frameLooksLive;
+    context.strokeStyle = live ? '#32d583' : '#f5b94c';
+    context.lineWidth = Math.max(3, width / 320);
+    context.strokeRect(box.x, box.y, box.width, box.height);
+    context.font = 'bold 14px sans-serif';
+    context.fillStyle = context.strokeStyle;
+    context.fillText(live ? 'LIVE' : (result.liveness?.status || 'FACE'), box.x, Math.max(18, box.y - 6));
+  }
+
   async function analyze(ui) {
     if (!state.sessionId || state.busy) return;
     state.busy = true;
@@ -37,9 +60,10 @@
       form.append('sessionId', state.sessionId);
       form.append('image', blob, 'client-frame.jpg');
       const result = await json('/api/v1/simulator/frames', { method: 'POST', body: form });
+      log('frame response', { sessionId: state.sessionId, detection: result.detection, liveness: result.liveness, qualityScore: result.qualityScore });
       state.frames = result.liveness.acceptedFrames;
       ui.frames.textContent = state.frames;
-      ui.faces.textContent = result.detection.faceDetected() ? '1' : '0';
+      ui.faces.textContent = result.detection.faceDetected ? result.detection.faceCount : '0';
       ui.liveness.textContent = result.liveness.liveScore.toFixed(3);
       ui.motion.textContent = result.liveness.temporalMotion.toFixed(3);
       ui.quality.textContent = result.qualityScore.toFixed(3);
@@ -48,7 +72,9 @@
       ui.feedback.textContent = result.liveness.status;
       ui.reason.textContent = result.liveness.instruction;
       ui.verify.disabled = !result.liveness.frameLooksLive;
+      drawOverlay(result);
     } catch (error) {
+      console.error('[CLIENT_EMBEDDING] frame processing error', error);
       ui.state.textContent = 'PROCESSING_ERROR';
       ui.feedback.textContent = 'PROCESSING_ERROR';
       ui.reason.textContent = error.message;
@@ -58,6 +84,7 @@
   }
 
   async function start(ui) {
+    log('starting client session');
     const result = await json('/api/v1/simulator/sessions', { method: 'POST' });
     state.sessionId = result.sessionId;
     state.frames = 0;
@@ -68,6 +95,7 @@
     ui.feedback.textContent = 'COLLECTING';
     ui.reason.textContent = 'Move slowly left and right';
     state.timer = setInterval(() => analyze(ui), 250);
+    log('client session started', { sessionId: state.sessionId });
   }
 
   async function stop(ui) {
@@ -86,13 +114,16 @@
     form.append('image', blob, 'client-embedding.jpg');
     ui.resultStatus.textContent = 'VERIFYING';
     try {
+      log('submitting client embedding', { sessionId: state.sessionId, userId: ui.reference.value || 'user-123' });
       const result = await json('/api/v1/simulator/client-verify', { method: 'POST', body: form });
+      log('server verification response', result);
       ui.resultStatus.textContent = result.matched ? 'MATCH' : 'NO_MATCH';
       ui.resultStatus.className = 'state-pill client-result-status ' + (result.matched ? 'done' : 'failed');
       ui.pipeline.forEach(step => { step.className = result.matched ? 'done' : 'failed'; });
       ui.json.hidden = false;
       ui.json.textContent = JSON.stringify(result, null, 2);
     } catch (error) {
+      console.error('[CLIENT_EMBEDDING] server verification error', error);
       ui.resultStatus.textContent = 'INCONCLUSIVE';
       ui.resultStatus.className = 'state-pill client-result-status failed';
       ui.json.hidden = false;

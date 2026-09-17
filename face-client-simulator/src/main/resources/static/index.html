@@ -26,7 +26,7 @@
       <section class="card camera-card">
         <div class="section-heading"><div><p class="eyebrow">INPUT</p><h2>Camera</h2></div><span class="state-pill camera-state">Idle</span></div>
         <label>Camera<select x-model="deviceId"><template x-for="c in cameras"><option :value="c.deviceId" x-text="c.label||'Camera'"></option></template></select></label>
-        <video id="preview" autoplay muted playsinline></video>
+        <div class="camera-stage"><video id="preview" autoplay muted playsinline></video><canvas id="camera-overlay"></canvas><div class="camera-guide"></div></div>
         <div class="row"><button class="primary" @click="start" :disabled="recording">Start camera</button><button @click="stop" :disabled="!stream">Stop camera</button></div>
         <p class="state" x-text="state"></p>
       </section>

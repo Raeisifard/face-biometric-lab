@@ -10,9 +10,12 @@ import org.opencv.core.MatOfDouble;
 import org.opencv.core.Rect;
 import org.opencv.imgproc.Imgproc;
 import org.springframework.stereotype.Service;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Service
 public class BiometricFrameProcessor {
+    private static final Logger log = LoggerFactory.getLogger(BiometricFrameProcessor.class);
     private static final double MIN_QUALITY_SCORE = 0.45;
     private final YuNetFaceDetector detector;
     private final MiniFasNetV2LivenessModel liveness;
@@ -35,6 +38,7 @@ public class BiometricFrameProcessor {
         Mat image=OpenCvImageCodec.decode(bytes);
         try {
             FaceDetectionResult detection=detector.detect(image);
+            log.info("[SIM_PIPELINE] session={} detection faceDetected={} faceCount={} confidence={} box={} processingMs={}", sessionId, detection.faceDetected(), detection.faceCount(), detection.confidence(), detection.box(), detection.processingTimeMs());
             if(!detection.faceDetected()) {
                 TemporalLivenessEngine.Result r=temporal.accept(sessionId,detection,0);
                 return new FrameAnalysis(sessionId,detection,toDto(r,0,System.nanoTime()-started),false,0);
@@ -47,6 +51,7 @@ public class BiometricFrameProcessor {
             }
             double liveScore=liveness.liveScore(image,detection.box());
             TemporalLivenessEngine.Result r=temporal.accept(sessionId,detection,liveScore);
+            log.info("[SIM_PIPELINE] session={} quality={} frameLiveness={} temporalStatus={} temporalMotion={} acceptedFrames={} live={} totalMs={}", sessionId, qualityScore, liveScore, r.status(), r.temporalMotion(), r.acceptedFrames(), r.live(), (System.nanoTime()-started)/1_000_000);
             return new FrameAnalysis(sessionId,detection,toDto(r,liveScore,System.nanoTime()-started),r.live(),qualityScore);
         } finally { image.release(); }
     }

@@ -49,7 +49,7 @@ public class SimulatorController {
     public Object frame(@RequestParam String sessionId,@RequestPart("image") MultipartFile image) throws Exception {
         requireSession(sessionId); requireImage(image);
         var result=processor.analyze(sessionId,image.getBytes());
-        log.debug("[SIM] Frame session={} face={} liveness={} live={} frames={}",sessionId,result.detection().faceDetected(),result.liveness().status(),result.liveness().frameLooksLive(),result.liveness().acceptedFrames());
+        log.info("[SIM_API] frame session={} faceDetected={} faceCount={} livenessStatus={} live={} quality={} frames={}",sessionId,result.detection().faceDetected(),result.detection().faceCount(),result.liveness().status(),result.liveness().frameLooksLive(),result.qualityScore(),result.liveness().acceptedFrames());
         return result;
     }
 
@@ -96,6 +96,7 @@ public class SimulatorController {
         var analysis = processor.analyze(sessionId, image.getBytes());
         if (!analysis.liveness().frameLooksLive()) throw new IllegalStateException("Temporal liveness has not passed: " + analysis.liveness().status());
         FaceEmbedding embedding = processor.generateClientEmbedding(image.getBytes());
+        log.info("[SIM_API] client verify session={} user={} model={} version={} dimension={} normalized={}", sessionId, userId, embedding.modelId(), embedding.modelVersion(), embedding.dimension(), embedding.normalized());
         return serverClient.verifyClient(userId, embedding);
     }
 
