@@ -2,6 +2,7 @@ package com.isc.facebiometricservice.streaming;
 
 import com.isc.facebiometricservice.biometric.ReferenceEmbeddingRepository;
 import com.isc.facebiometricservice.config.BiometricProperties;
+import com.isc.facebiometricservice.videoverification.VideoVerificationEngine;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
@@ -29,6 +30,8 @@ public class LiveStreamSessionManager {
     private final LiveFrameAnalyzer analyzer;
     private final ReferenceEmbeddingRepository references;
     private final BiometricProperties biometricProperties;
+    private final VideoVerificationEngine recognitionEngine;
+    private final Map<String, List<Double>> recognitionScoresBySession = new ConcurrentHashMap<>();
 
     public LiveStreamSessionManager() {
         this(Duration.ofMinutes(2), frame -> new LiveFrameAnalyzer.Analysis("GOOD_FRAME", "Frame accepted"));
@@ -42,11 +45,18 @@ public class LiveStreamSessionManager {
         this(Duration.ofMinutes(2), analyzer);
     }
 
-    @Autowired
     public LiveStreamSessionManager(LiveFrameAnalyzer analyzer,
                                     ReferenceEmbeddingRepository references,
                                     BiometricProperties biometricProperties) {
         this(Duration.ofMinutes(2), analyzer, references, biometricProperties);
+    }
+
+    @Autowired
+    public LiveStreamSessionManager(LiveFrameAnalyzer analyzer,
+                                    ReferenceEmbeddingRepository references,
+                                    BiometricProperties biometricProperties,
+                                    VideoVerificationEngine recognitionEngine) {
+        this(Duration.ofMinutes(2), analyzer, references, biometricProperties, recognitionEngine);
     }
 
     private LiveStreamSessionManager(Duration sessionTtl, LiveFrameAnalyzer analyzer) {
@@ -56,6 +66,13 @@ public class LiveStreamSessionManager {
     private LiveStreamSessionManager(Duration sessionTtl, LiveFrameAnalyzer analyzer,
                                      ReferenceEmbeddingRepository references,
                                      BiometricProperties biometricProperties) {
+        this(sessionTtl, analyzer, references, biometricProperties, null);
+    }
+
+    private LiveStreamSessionManager(Duration sessionTtl, LiveFrameAnalyzer analyzer,
+                                     ReferenceEmbeddingRepository references,
+                                     BiometricProperties biometricProperties,
+                                     VideoVerificationEngine recognitionEngine) {
         if (sessionTtl == null || sessionTtl.isNegative() || sessionTtl.isZero()) {
             throw new IllegalArgumentException("sessionTtl must be positive");
         }
@@ -63,6 +80,7 @@ public class LiveStreamSessionManager {
         this.analyzer = analyzer;
         this.references = references;
         this.biometricProperties = biometricProperties;
+        this.recognitionEngine = recognitionEngine;
     }
 
     public VerificationSession createSession(String customerReferenceId, String expectedCaptureMode) {
@@ -101,6 +119,12 @@ public class LiveStreamSessionManager {
         int count = frameCountsBySession.merge(sessionId, 1, Integer::sum);
         int progress = Math.min(100, count * 20);
         LiveFrameAnalyzer.Analysis analysis = analyzer.analyze(sessionId, frame);
+        if (recognitionEngine != null) {
+            VideoVerificationEngine.LiveRecognition recognition = recognitionEngine.recognizeLiveFrame(frame, session.customerReferenceId());
+            if (recognition.similarity() != null) {
+                recognitionScoresBySession.computeIfAbsent(sessionId, ignored -> new CopyOnWriteArrayList<>()).add(recognition.similarity());
+            }
+        }
         if (analysis.livenessScore() != null) {
             latestLivenessBySession.put(sessionId, analysis.livenessScore());
             livenessScoresBySession.computeIfAbsent(sessionId, ignored -> new CopyOnWriteArrayList<>()).add(analysis.livenessScore());
@@ -172,6 +196,10 @@ public class LiveStreamSessionManager {
                 ? "VERIFICATION_FAILED: NO_FRAME"
             : references != null && !referenceExists(session.customerReferenceId())
                 ? "VERIFICATION_INCONCLUSIVE: REFERENCE_NOT_FOUND"
+            : recognitionEngine != null && recognitionScoresBySession.getOrDefault(sessionId, List.of()).isEmpty()
+                ? "VERIFICATION_INCONCLUSIVE: RECOGNITION_FAILED"
+            : recognitionEngine != null && averageRecognition(sessionId) < biometricProperties.threshold()
+                ? "VERIFICATION_COMPLETE: NO_MATCH"
             : Boolean.TRUE.equals(temporalAvailableBySession.get(sessionId))
                 && !Boolean.TRUE.equals(temporalReadyBySession.get(sessionId))
                 ? "VERIFICATION_INCONCLUSIVE: TEMPORAL_EVIDENCE_PENDING"
@@ -185,12 +213,14 @@ public class LiveStreamSessionManager {
                 };
         String processingState = finalResult.endsWith("RECOGNITION_PENDING") || finalResult.endsWith("TEMPORAL_EVIDENCE_PENDING")
             ? "RECOGNITION_PENDING" : "VERIFICATION_COMPLETE";
-        String result = finalResult.startsWith("VERIFICATION_FAILED") ? "NO_MATCH"
+        String result = finalResult.startsWith("VERIFICATION_FAILED") || finalResult.endsWith("NO_MATCH") ? "NO_MATCH"
             : finalResult.endsWith("RECOGNITION_PENDING") || finalResult.endsWith("TEMPORAL_EVIDENCE_PENDING") || finalResult.endsWith("REFERENCE_NOT_FOUND") ? "INCONCLUSIVE" : "MATCH";
         List<String> reasonCodes = finalResult.endsWith("REFERENCE_NOT_FOUND")
             ? List.of("REFERENCE_NOT_FOUND")
             : finalResult.endsWith("RECOGNITION_PENDING") || finalResult.endsWith("TEMPORAL_EVIDENCE_PENDING")
             ? List.of(finalResult.endsWith("TEMPORAL_EVIDENCE_PENDING") ? "TEMPORAL_EVIDENCE_PENDING" : "RECOGNITION_PENDING")
+            : finalResult.endsWith("NO_MATCH")
+            ? List.of("SIMILARITY_BELOW_THRESHOLD")
             : finalResult.startsWith("VERIFICATION_FAILED")
             ? List.of(finalResult.substring(finalResult.indexOf(':') + 2)) : List.of();
         VerificationSession updated = new VerificationSession(
@@ -200,7 +230,7 @@ public class LiveStreamSessionManager {
                 session.expirationTime(),
                 session.expectedCaptureMode(),
                 processingState,
-                finalResult, result, null, averageLiveness(sessionId), 0, frameCount, frameCount, reasonCodes
+                finalResult, result, averageRecognitionOrNull(sessionId), averageLiveness(sessionId), 0, frameCount, frameCount, reasonCodes
         );
         sessions.put(sessionId, updated);
             latestFeedbackBySession.put(sessionId, new FrameFeedback(
@@ -226,5 +256,15 @@ public class LiveStreamSessionManager {
     private boolean referenceExists(String referenceId) {
         return biometricProperties != null
                 && references.find(referenceId, biometricProperties.modelId(), biometricProperties.modelVersion()).isPresent();
+    }
+
+    private double averageRecognition(String sessionId) {
+        return recognitionScoresBySession.getOrDefault(sessionId, List.of()).stream()
+                .mapToDouble(Double::doubleValue).average().orElse(0);
+    }
+
+    private Double averageRecognitionOrNull(String sessionId) {
+        List<Double> scores = recognitionScoresBySession.get(sessionId);
+        return scores == null || scores.isEmpty() ? null : averageRecognition(sessionId);
     }
 }
