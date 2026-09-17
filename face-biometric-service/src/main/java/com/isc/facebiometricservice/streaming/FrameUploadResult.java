@@ -10,6 +10,8 @@ public record FrameUploadResult(
         long frameSizeBytes,
         Instant receivedAt,
         int frameCount,
-        int livenessProgressPercent
+        int livenessProgressPercent,
+        int detectedFaces,
+        Double livenessScore
 ) {
 }

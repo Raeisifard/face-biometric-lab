@@ -1,6 +1,7 @@
 package com.isc.facebiometricservice.streaming;
 
 import java.time.Instant;
+import java.util.List;
 
 public record VerificationSession(
         String sessionId,
@@ -9,7 +10,14 @@ public record VerificationSession(
         Instant expirationTime,
         String expectedCaptureMode,
         String processingState,
-        String finalResult
+        String finalResult,
+        String result,
+        Double similarity,
+        Double livenessScore,
+        long processingTimeMs,
+        int decodedFrames,
+        int recognitionFrames,
+        List<String> reasonCodes
 ) {
     public VerificationSession {
         if (sessionId == null || sessionId.isBlank()) {
@@ -21,5 +29,6 @@ public record VerificationSession(
         if (processingState == null || processingState.isBlank()) {
             processingState = "CAPTURING";
         }
+        if (reasonCodes == null) reasonCodes = List.of();
     }
 }

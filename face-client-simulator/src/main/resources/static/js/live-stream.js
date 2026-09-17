@@ -10,9 +10,13 @@
     panel.innerHTML = '<div class="section-heading"><div><p class="eyebrow">METHOD 2</p><h2>Live stream</h2></div><span class="state-pill live-state-pill">Ready</span></div>' +
       '<p class="live-method"></p><label>Reference ID<input class="live-reference" value="user-123"></label>' +
       '<label>Upload FPS <input class="live-fps" type="number" min="1" max="10" step="1" value="5"></label>' +
-      '<div class="row"><button class="primary live-start">Start live session</button><button class="live-stop" disabled>Stop session</button></div>' +
+      '<div class="row"><button class="primary live-start">Start live session</button><button class="live-stop" disabled>Stop session</button><button class="live-continue" hidden>Continue capture</button></div>' +
       '<div class="live-summary"><div><span>Server state</span><strong class="live-state">IDLE</strong></div><div><span>Frames</span><strong class="live-frames">0</strong></div><div><span>Latency</span><strong class="live-latency">-</strong></div><div><span>Upload</span><strong class="live-bytes">0 B</strong></div></div>' +
       '<div class="feedback-box"><span class="feedback-icon">●</span><div><strong class="live-feedback">Waiting for session</strong><small class="live-reason">No server response yet</small></div></div>' +
+      '<div class="clip-result live-result"><div class="section-heading"><p class="eyebrow">SERVER PIPELINE</p><span class="state-pill live-result-status">PENDING</span></div>' +
+      '<div class="pipeline live-pipeline"><span data-step="upload">Upload</span><span data-step="decode">Decode</span><span data-step="detect">Detect</span><span data-step="quality">Quality</span><span data-step="live">Liveness</span><span data-step="select">Select</span><span data-step="recognition">Recognition</span><span data-step="match">Match</span></div>' +
+      '<div class="clip-result-grid"><div><span>Similarity</span><strong class="live-similarity">-</strong></div><div><span>Liveness</span><strong class="live-liveness">-</strong></div><div><span>Detected faces</span><strong class="live-detected">0</strong></div><div><span>Decoded frames</span><strong class="live-decoded">0</strong></div><div><span>Recognition frames</span><strong class="live-recognition">0</strong></div><div><span>Processing</span><strong class="live-processing">-</strong></div><div><span>Round trip</span><strong class="live-round-trip">-</strong></div></div>' +
+      '<div class="reason-box"><b>Reason codes</b><span class="live-reasons">None</span></div></div>' +
       '<div class="process-columns"><div><p class="eyebrow">PROCESS TIMELINE</p><ul class="live-events"></ul></div><div><p class="eyebrow">FINAL RESULT</p><div class="final-result pending"><strong class="final-status">Pending</strong><small class="final-reason">Capture has not completed</small></div></div></div>';
     return panel;
   }
@@ -26,14 +30,17 @@
       const result = await json('/api/v1/simulator/live-stream/sessions/' + state.sessionId + '/frames', { method: 'POST', body: form });
       state.frames = result.frameCount || state.frames + 1; state.bytes += blob.size;
       ui.frames.textContent = state.frames; ui.bytes.textContent = formatBytes(state.bytes); ui.latency.textContent = Math.round(performance.now() - started) + ' ms';
+      if (result.livenessScore != null) ui.liveness.textContent = result.livenessScore;
+      ui.detected.textContent = result.detectedFaces ?? 0; ui.decoded.textContent = result.frameCount ?? state.frames; ui.recognition.textContent = result.feedbackCode === 'GOOD_FRAME' ? result.frameCount : ui.recognition.textContent;
       ui.feedback.textContent = result.feedbackCode; ui.reason.textContent = result.message; ui.serverState.textContent = result.state; ui.pill.textContent = result.state;
       addEvent(ui, result.feedbackCode, result.message, result.feedbackCode === 'GOOD_FRAME' || result.feedbackCode === 'LIVENESS_PROGRESS' ? 'success' : 'warning');
     } catch (error) { ui.serverState.textContent = 'PROCESSING_ERROR'; ui.feedback.textContent = 'PROCESSING_ERROR'; ui.reason.textContent = error.message; addEvent(ui, 'PROCESSING_ERROR', error.message, 'error'); } finally { state.busy = false; }
   }
 
   async function start(ui) {
-    const result = await json('/api/v1/simulator/live-stream/sessions?referenceId=' + encodeURIComponent(referenceId()), { method: 'POST' });
-    state.sessionId = result.sessionId; state.frames = 0; state.bytes = 0; ui.start.disabled = true; ui.stop.disabled = false; ui.serverState.textContent = result.processingState; ui.pill.textContent = result.processingState;
+    const resuming = Boolean(state.sessionId);
+    const result = resuming ? { sessionId: state.sessionId, processingState: 'CAPTURING' } : await json('/api/v1/simulator/live-stream/sessions?referenceId=' + encodeURIComponent(referenceId()), { method: 'POST' });
+    state.sessionId = result.sessionId; state.frames = resuming ? state.frames : 0; state.bytes = resuming ? state.bytes : 0; ui.start.disabled = true; ui.stop.disabled = false; ui.continue.hidden = true; ui.serverState.textContent = result.processingState; ui.pill.textContent = result.processingState;
     ui.feedback.textContent = 'CAPTURE_CONTINUE'; ui.reason.textContent = 'Session ' + result.sessionId + ' started'; addEvent(ui, 'SESSION_STARTED', 'Server accepted session for ' + referenceId(), 'success');
     const video = document.getElementById('preview'); const canvas = document.createElement('canvas'); canvas.width = video.videoWidth || 640; canvas.height = video.videoHeight || 480; const fps = Math.max(1, Math.min(10, Number(ui.fps.value) || 5));
     state.timer = setInterval(() => { canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height); sendFrame(canvas, ui); }, 1000 / fps);
@@ -43,14 +50,31 @@
     if (state.timer) clearInterval(state.timer); state.timer = null;
     if (!state.sessionId) return;
     const sessionId = state.sessionId; state.sessionId = null;
+    const started = performance.now();
     const result = await json('/api/v1/simulator/live-stream/sessions/' + sessionId + '/complete', { method: 'POST' });
-    ui.serverState.textContent = result.processingState; ui.pill.textContent = result.processingState; ui.feedback.textContent = result.finalResult || 'VERIFICATION_COMPLETE'; ui.reason.textContent = result.finalResult || 'Server completed processing';
-    const failed = (result.finalResult || '').startsWith('VERIFICATION_FAILED'); ui.final.className = 'final-result ' + (failed ? 'failed' : 'success'); ui.finalStatus.textContent = failed ? 'Verification failed' : 'Verification complete'; ui.finalReason.textContent = result.finalResult || 'No reason supplied';
-    addEvent(ui, failed ? 'VERIFICATION_FAILED' : 'VERIFICATION_COMPLETE', result.finalResult || 'Server completed processing', failed ? 'error' : 'success'); ui.start.disabled = false; ui.stop.disabled = true;
+    applyVerificationResult(ui, result, Math.round(performance.now() - started));
+    if (result.result === 'INCONCLUSIVE' || result.processingState === 'RECOGNITION_PENDING') { state.sessionId = sessionId; ui.start.disabled = true; ui.continue.hidden = false; } else { ui.start.disabled = false; }
+    ui.stop.disabled = true;
+  }
+
+  function applyVerificationResult(ui, result, roundTripMs) {
+    const pending = result.result === 'INCONCLUSIVE' || result.processingState === 'RECOGNITION_PENDING';
+    const failed = result.result === 'NO_MATCH' || (result.finalResult || '').startsWith('VERIFICATION_FAILED');
+    const terminal = !pending;
+    ui.serverState.textContent = result.processingState || result.result; ui.pill.textContent = result.processingState || result.result;
+    ui.feedback.textContent = result.result || 'INCONCLUSIVE'; ui.reason.textContent = result.finalResult || 'Server completed processing';
+    ui.status.textContent = result.result || 'PENDING'; ui.status.className = 'state-pill live-result-status ' + (failed ? 'failed' : pending ? 'pending' : 'done');
+    ui.similarity.textContent = result.similarity == null ? '-' : result.similarity; ui.liveness.textContent = result.livenessScore == null ? '-' : result.livenessScore;
+    ui.decoded.textContent = result.decodedFrames ?? 0; ui.recognition.textContent = result.recognitionFrames ?? 0; ui.processing.textContent = result.processingTimeMs ? result.processingTimeMs + ' ms' : '-'; ui.roundTrip.textContent = roundTripMs + ' ms';
+    ui.reasons.textContent = result.reasonCodes && result.reasonCodes.length ? result.reasonCodes.join(', ') : 'None';
+    const steps = pending ? ['upload', 'decode', 'detect', 'quality', 'live', 'select'] : ['upload', 'decode', 'detect', 'quality', 'live', 'select', 'recognition', 'match'];
+    ui.pipeline.forEach(step => { step.className = result.reasonCodes?.length && result.reasonCodes.some(code => code.includes(step.dataset.step.toUpperCase())) ? 'failed' : terminal ? 'done' : steps.includes(step.dataset.step) ? 'done' : 'pending'; });
+    ui.final.className = 'final-result ' + (failed ? 'failed' : pending ? 'pending' : 'success'); ui.finalStatus.textContent = failed ? 'Verification failed' : pending ? 'Recognition pending' : 'Verification complete'; ui.finalReason.textContent = result.finalResult || 'No reason supplied';
+    addEvent(ui, result.result || 'VERIFICATION_PENDING', result.finalResult || 'Server completed processing', failed ? 'error' : pending ? 'warning' : 'success');
   }
 
   document.addEventListener('DOMContentLoaded', async () => {
-    const panel = livePanel(); const ui = { start: panel.querySelector('.live-start'), stop: panel.querySelector('.live-stop'), fps: panel.querySelector('.live-fps'), serverState: panel.querySelector('.live-state'), pill: panel.querySelector('.live-state-pill'), feedback: panel.querySelector('.live-feedback'), reason: panel.querySelector('.live-reason'), frames: panel.querySelector('.live-frames'), bytes: panel.querySelector('.live-bytes'), latency: panel.querySelector('.live-latency'), events: panel.querySelector('.live-events'), final: panel.querySelector('.final-result'), finalStatus: panel.querySelector('.final-status'), finalReason: panel.querySelector('.final-reason') };
+    const panel = livePanel(); const ui = { start: panel.querySelector('.live-start'), stop: panel.querySelector('.live-stop'), continue: panel.querySelector('.live-continue'), fps: panel.querySelector('.live-fps'), serverState: panel.querySelector('.live-state'), pill: panel.querySelector('.live-state-pill'), feedback: panel.querySelector('.live-feedback'), reason: panel.querySelector('.live-reason'), frames: panel.querySelector('.live-frames'), bytes: panel.querySelector('.live-bytes'), latency: panel.querySelector('.live-latency'), events: panel.querySelector('.live-events'), final: panel.querySelector('.final-result'), finalStatus: panel.querySelector('.final-status'), finalReason: panel.querySelector('.final-reason'), status: panel.querySelector('.live-result-status'), similarity: panel.querySelector('.live-similarity'), liveness: panel.querySelector('.live-liveness'), detected: panel.querySelector('.live-detected'), decoded: panel.querySelector('.live-decoded'), recognition: panel.querySelector('.live-recognition'), processing: panel.querySelector('.live-processing'), roundTrip: panel.querySelector('.live-round-trip'), reasons: panel.querySelector('.live-reasons'), pipeline: panel.querySelectorAll('.live-pipeline span') };
     try {
       const method = await json('/api/v1/simulator/live-stream/capture-method'); state.method = method.selectedMethod; document.querySelector('.method-badge').textContent = state.method === 'LIVE_STREAM' ? 'LIVE STREAM ACTIVE' : 'FULL CLIP ACTIVE';
       document.querySelector('.live-nav').classList.toggle('selected', state.method === 'LIVE_STREAM'); document.querySelector('.clip-nav').classList.toggle('selected', state.method === 'FULL_CLIP');
@@ -59,6 +83,7 @@
       addEvent(ui, 'SERVER_METHOD', state.method, 'info');
     } catch (error) { document.querySelector('.method-badge').textContent = 'SERVER OFFLINE'; addEvent(ui, 'SERVER_OFFLINE', error.message, 'error'); ui.start.disabled = true; }
     ui.start.addEventListener('click', () => start(ui).catch(error => { ui.feedback.textContent = 'PROCESSING_ERROR'; ui.reason.textContent = error.message; }));
+    ui.continue.addEventListener('click', () => start(ui).catch(error => { ui.feedback.textContent = 'PROCESSING_ERROR'; ui.reason.textContent = error.message; }));
     ui.stop.addEventListener('click', () => stop(ui).catch(error => { ui.feedback.textContent = 'PROCESSING_ERROR'; ui.reason.textContent = error.message; }));
   });
 })();

@@ -55,4 +55,67 @@ class LiveStreamSessionManagerTest {
         assertEquals("VERIFICATION_COMPLETE", manager.getSession(session.sessionId()).processingState());
         assertEquals("VERIFICATION_COMPLETE: RECOGNITION_SUCCESS", manager.getSession(session.sessionId()).finalResult());
     }
+
+    @Test
+    void aggregatesLivenessAcrossFrames() {
+        LiveStreamSessionManager manager = new LiveStreamSessionManager(frame ->
+                new LiveFrameAnalyzer.Analysis("GOOD_FRAME", "Accepted", frame[0] / 10.0, 1));
+        VerificationSession session = manager.createSession("customer-003", "LIVE_STREAM");
+
+        manager.recordFrame(session.sessionId(), new byte[] {8});
+        manager.recordFrame(session.sessionId(), new byte[] {6});
+        manager.markCaptureComplete(session.sessionId());
+
+        assertEquals(0.7, manager.getSession(session.sessionId()).livenessScore(), 1e-9);
+    }
+
+    @Test
+    void preservesLivenessFailureFromEarlierFrame() {
+        LiveStreamSessionManager manager = new LiveStreamSessionManager(new LiveFrameAnalyzer() {
+            private int frame;
+
+            @Override
+            public Analysis analyze(byte[] payload) {
+                frame++;
+                return frame == 1
+                        ? new Analysis("LIVENESS_FAILED", "Spoof detected", 0.1, 1)
+                        : new Analysis("GOOD_FRAME", "Accepted", 0.95, 1);
+            }
+        });
+        VerificationSession session = manager.createSession("customer-004", "LIVE_STREAM");
+
+        manager.recordFrame(session.sessionId(), new byte[] {1});
+        manager.recordFrame(session.sessionId(), new byte[] {1});
+        manager.markCaptureComplete(session.sessionId());
+
+        assertEquals("NO_MATCH", manager.getSession(session.sessionId()).result());
+        assertEquals("VERIFICATION_FAILED: LIVENESS_FAILED", manager.getSession(session.sessionId()).finalResult());
+        assertEquals(0.525, manager.getSession(session.sessionId()).livenessScore(), 1e-9);
+    }
+
+    @Test
+    void staticFramesRemainPendingWithoutTemporalEvidence() {
+        LiveStreamSessionManager manager = new LiveStreamSessionManager(frame ->
+                new LiveFrameAnalyzer.Analysis("GOOD_FRAME", "Static face", 0.95, 1, 0.0, false));
+        VerificationSession session = manager.createSession("customer-005", "LIVE_STREAM");
+
+        for (int i = 0; i < 5; i++) manager.recordFrame(session.sessionId(), new byte[] {1});
+        manager.markCaptureComplete(session.sessionId());
+
+        assertEquals("INCONCLUSIVE", manager.getSession(session.sessionId()).result());
+        assertEquals("VERIFICATION_INCONCLUSIVE: TEMPORAL_EVIDENCE_PENDING", manager.getSession(session.sessionId()).finalResult());
+    }
+
+    @Test
+    void movingFramesCanCompleteSequenceLiveness() {
+        LiveStreamSessionManager manager = new LiveStreamSessionManager(frame ->
+                new LiveFrameAnalyzer.Analysis("GOOD_FRAME", "Temporal evidence accepted", 0.95, 1, 0.08, true));
+        VerificationSession session = manager.createSession("customer-006", "LIVE_STREAM");
+
+        for (int i = 0; i < 5; i++) manager.recordFrame(session.sessionId(), new byte[] {1});
+        manager.markCaptureComplete(session.sessionId());
+
+        assertEquals("MATCH", manager.getSession(session.sessionId()).result());
+        assertEquals("VERIFICATION_COMPLETE: RECOGNITION_SUCCESS", manager.getSession(session.sessionId()).finalResult());
+    }
 }
