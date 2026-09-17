@@ -7,7 +7,7 @@
     target.innerHTML = '<div class="section-heading"><div><p class="eyebrow">CLIENT EMBEDDING</p><h2>Local biometric pipeline</h2></div><span class="state-pill client-state-pill">Ready</span></div>' +
       '<p class="method-description">YuNet, quality, temporal liveness, alignment, and MobileFaceNet run in the simulator. The server receives only the final 512-D embedding.</p>' +
       '<label>Reference ID<input class="client-reference" value="user-123"></label>' +
-      '<div class="row"><button class="primary client-start">Start client session</button><button class="client-stop" disabled>Stop session</button><button class="primary client-verify" disabled>Verify embedding</button></div>' +
+      '<div class="row"><button class="primary client-start">Start client session</button><button class="client-stop" disabled>Stop session</button><button class="primary client-verify" disabled>Verify embedding</button><button class="client-export" disabled>Export embedding</button></div>' +
       '<div class="live-summary"><div><span>Local state</span><strong class="client-live-state">IDLE</strong></div><div><span>Frames</span><strong class="client-frames">0</strong></div><div><span>Detected faces</span><strong class="client-faces">0</strong></div><div><span>Quality</span><strong class="client-quality">-</strong></div><div><span>Liveness</span><strong class="client-liveness">-</strong></div><div><span>Temporal motion</span><strong class="client-motion">-</strong></div><div><span>Embedding profile</span><strong>MobileFaceNet</strong></div></div>' +
       '<div class="feedback-box"><span class="feedback-icon">●</span><div><strong class="client-feedback">Waiting for session</strong><small class="client-reason">No local analysis yet</small></div></div>' +
       '<div class="clip-result client-result"><div class="section-heading"><p class="eyebrow">SERVER COMPARISON</p><span class="state-pill client-result-status">PENDING</span></div><div class="pipeline client-pipeline"><span class="pending">Local pipeline</span><span class="pending">Embedding upload</span><span class="pending">Reference lookup</span><span class="pending">Cosine match</span></div><div class="reason-box"><b>Trust boundary</b><span>CLIENT_GENERATED embedding; similarity is SERVER_VERIFIED</span></div><pre class="client-json" hidden></pre></div>';
@@ -72,6 +72,7 @@
       ui.feedback.textContent = result.liveness.status;
       ui.reason.textContent = result.liveness.instruction;
       ui.verify.disabled = !result.liveness.frameLooksLive;
+      ui.export.disabled = !result.liveness.frameLooksLive;
       drawOverlay(result);
     } catch (error) {
       console.error('[CLIENT_EMBEDDING] frame processing error', error);
@@ -131,10 +132,38 @@
     }
   }
 
+  async function exportEmbedding(ui) {
+    if (!state.sessionId) return;
+    const blob = await imageBlob();
+    const form = new FormData();
+    form.append('image', blob, 'client-embedding-reference.jpg');
+    const embedding = await json('/api/v1/simulator/client-embedding', { method: 'POST', body: form });
+    const userId = ui.reference.value.trim() || 'user-123';
+    const yaml = [
+      `${userId}:`,
+      `  model-id: ${embedding.modelId}`,
+      `  model-version: ${embedding.modelVersion}`,
+      `  dimension: ${embedding.dimension}`,
+      `  normalized: ${embedding.normalized}`,
+      '  embedding:',
+      ...embedding.embedding.map(value => `    - ${value}`)
+    ].join('\n');
+    console.group('[CLIENT_EMBEDDING] MobileFaceNet reference export');
+    console.info('Copy the YAML block below into face-biometric-service/src/main/resources/biometric-embeddings.yml under biometric.reference-embeddings:');
+    console.log(yaml);
+    console.log('Raw 512-D vector:', embedding.embedding);
+    console.info('Profile:', { modelId: embedding.modelId, modelVersion: embedding.modelVersion, dimension: embedding.dimension, normalized: embedding.normalized });
+    console.groupEnd();
+    ui.json.hidden = false;
+    ui.json.textContent = yaml;
+    ui.resultStatus.textContent = 'EXPORTED TO CONSOLE';
+    ui.resultStatus.className = 'state-pill client-result-status done';
+  }
+
   document.addEventListener('DOMContentLoaded', () => {
     const target = panel();
     const ui = {
-      start: target.querySelector('.client-start'), stop: target.querySelector('.client-stop'), verify: target.querySelector('.client-verify'),
+      start: target.querySelector('.client-start'), stop: target.querySelector('.client-stop'), verify: target.querySelector('.client-verify'), export: target.querySelector('.client-export'),
       reference: target.querySelector('.client-reference'), state: target.querySelector('.client-live-state'), pill: target.querySelector('.client-state-pill'),
       frames: target.querySelector('.client-frames'), faces: target.querySelector('.client-faces'), quality: target.querySelector('.client-quality'), liveness: target.querySelector('.client-liveness'), motion: target.querySelector('.client-motion'),
       feedback: target.querySelector('.client-feedback'), reason: target.querySelector('.client-reason'), resultStatus: target.querySelector('.client-result-status'), pipeline: target.querySelectorAll('.client-pipeline span'), json: target.querySelector('.client-json')
@@ -146,5 +175,11 @@
     ui.start.addEventListener('click', () => start(ui).catch(error => { ui.reason.textContent = error.message; }));
     ui.stop.addEventListener('click', () => stop(ui));
     ui.verify.addEventListener('click', () => verify(ui));
+    ui.export.addEventListener('click', () => exportEmbedding(ui).catch(error => {
+      console.error('[CLIENT_EMBEDDING] reference export error', error);
+      ui.resultStatus.textContent = 'EXPORT_ERROR';
+      ui.json.hidden = false;
+      ui.json.textContent = error.message;
+    }));
   });
 })();
