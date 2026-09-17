@@ -48,6 +48,6 @@ biometric:
 management.endpoints.web.exposure.include: health,info
 logging:
   level:
-    com.isc.facebiometricservice: INFO
+    com.isc.facebiometricservice: DEBUG
     com.isc.facebiometricservice.videoverification: DEBUG
-    com.isc.facebiometricservice.api.VideoVerificationController: INFO
+    com.isc.facebiometricservice.api.VideoVerificationController: DEBUG
