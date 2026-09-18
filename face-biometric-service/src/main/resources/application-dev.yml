@@ -1,0 +1,3 @@
+biometric:
+  policy:
+    selection-mode: CLIENT_SELECTABLE
