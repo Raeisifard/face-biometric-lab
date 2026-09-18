@@ -81,6 +81,8 @@ public class AdaptiveVerificationService {
         if (method != BiometricPolicyMethod.HYBRID_SINGLE_FRAME && method != BiometricPolicyMethod.SERVER_LIVE_STREAM) {
             return reject(s, "METHOD_INPUT_MISMATCH", "Image input is not valid for the current adaptive method");
         }
+        if (image == null || image.length == 0) return reject(s, "INVALID_IMAGE", "A non-empty image is required");
+        policyService.validatePayload(s.policy, image.length);
         VideoVerificationEngine.SingleImageOutcome outcome = method == BiometricPolicyMethod.HYBRID_SINGLE_FRAME
                 ? engine.verifySingleImage(UUID.randomUUID().toString(), image, s.referenceId)
                 : liveImage(image, s.referenceId);
@@ -103,6 +105,10 @@ public class AdaptiveVerificationService {
     public AttemptView verifyFrames(String sessionId, List<byte[]> frames) {
         Session s = begin(sessionId);
         if (s.policy.method() != BiometricPolicyMethod.HYBRID_MULTI_FRAME) return reject(s, "METHOD_INPUT_MISMATCH", "Frame input is not valid for the current adaptive method");
+        if (frames == null || frames.isEmpty()) return reject(s, "FRAMES_REQUIRED", "At least one frame is required");
+        policyService.validateFrameCount(s.policy, frames.size());
+        long payloadBytes = frames.stream().filter(Objects::nonNull).mapToLong(a -> a.length).sum();
+        policyService.validatePayload(s.policy, payloadBytes);
         var outcome = multiFrame.verify(UUID.randomUUID().toString(), s.referenceId, frames);
         return evaluate(s, outcome.result(), first(outcome.reasonCodes()), outcome.reasonCodes(), outcome.similarity(),
                 outcome.qualityScore(), outcome.livenessScore(), outcome.processingMs(), outcome.submittedFrames(), outcome.recognitionFrames());
@@ -113,6 +119,7 @@ public class AdaptiveVerificationService {
         if (s.policy.method() != BiometricPolicyMethod.SERVER_FULL_CLIP) return reject(s, "METHOD_INPUT_MISMATCH", "Clip input is not valid for the current adaptive method");
         byte[] bytes = clip == null ? null : clip.getBytes();
         if (bytes == null || bytes.length == 0) return reject(s, "INVALID_VIDEO", "A non-empty video clip is required");
+        policyService.validatePayload(s.policy, bytes.length);
         var decoded = decoder.decode(clip, 4.0, s.referenceId);
         policyService.validateDuration(s.policy, decoded.durationSeconds());
         var outcome = engine.verify(UUID.randomUUID().toString(), decoded, s.referenceId);
