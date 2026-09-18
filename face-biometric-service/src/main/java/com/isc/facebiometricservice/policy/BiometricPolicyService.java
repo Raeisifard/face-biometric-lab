@@ -23,6 +23,7 @@ public class BiometricPolicyService {
     public BiometricPolicyService(BiometricPolicyProperties properties, Environment environment,
                                   @Value("${biometric.capture-method:FREE_METHOD}") String legacyCaptureMethod) {
         this.properties = properties;
+        this.environment = environment;
         this.legacyCaptureMethod = legacyCaptureMethod;
     }
 
