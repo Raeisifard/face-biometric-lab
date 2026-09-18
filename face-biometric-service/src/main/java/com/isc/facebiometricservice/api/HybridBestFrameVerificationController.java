@@ -2,6 +2,9 @@ package com.isc.facebiometricservice.api;
 
 import com.isc.facebiometricservice.biometric.FaceMatcher;
 import com.isc.facebiometricservice.config.BiometricProperties;
+import com.isc.facebiometricservice.policy.BiometricPolicy;
+import com.isc.facebiometricservice.policy.BiometricPolicyService;
+import com.isc.facebiometricservice.policy.BiometricPolicyViolationException;
 import com.isc.facebiometricservice.videoverification.VideoVerificationEngine;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,28 +30,35 @@ public class HybridBestFrameVerificationController {
     private final VideoVerificationEngine engine;
     private final BiometricProperties biometricProperties;
     private final FaceMatcher matcher;
+    private final BiometricPolicyService policyService;
     private final Map<String, Session> sessions = new ConcurrentHashMap<>();
 
     public HybridBestFrameVerificationController(VideoVerificationEngine engine,
                                                   BiometricProperties biometricProperties,
-                                                  FaceMatcher matcher) {
+                                                  FaceMatcher matcher,
+                                                  BiometricPolicyService policyService) {
         this.engine = engine;
         this.biometricProperties = biometricProperties;
         this.matcher = matcher;
+        this.policyService = policyService;
         log.info("[HYBRID][INIT] Hybrid best-frame verification controller initialized; sessionTtl={}s maxImageBytes={}",
                 SESSION_TTL.toSeconds(), MAX_IMAGE_BYTES);
     }
 
     @PostMapping("/sessions")
-    public SessionResponse createSession(@RequestParam String referenceId) {
-        if (referenceId == null || referenceId.isBlank()) {
-            throw new IllegalArgumentException("referenceId is required");
+    public ResponseEntity<?> createSession(@RequestParam String referenceId) {
+        try {
+            if (referenceId == null || referenceId.isBlank()) return ResponseEntity.badRequest().body(new ErrorResponse("REFERENCE_REQUIRED", "referenceId is required"));
+            BiometricPolicy policy = policyService.currentPolicy();
+            policyService.validateMethod(policy, "HYBRID_SINGLE_FRAME");
+            String id = UUID.randomUUID().toString();
+            Instant exp = Instant.now().plusSeconds(policy.sessionTtlSeconds());
+            sessions.put(id, new Session(id, referenceId, exp, false, policy));
+            log.info("[HYBRID][SESSION_CREATED] sessionId={} referenceId={} expiresAt={} policy={}:{}", id, referenceId, exp, policy.policyId(), policy.version());
+            return ResponseEntity.ok(new SessionResponse(id, referenceId, exp, policy.policyId(), policy.version(), policy.recognition().modelId(), policy.recognition().modelVersion(), policy.recognition().threshold()));
+        } catch (BiometricPolicyViolationException ex) {
+            return ResponseEntity.badRequest().body(new ErrorResponse(ex.code(), ex.getMessage()));
         }
-        String id = UUID.randomUUID().toString();
-        Instant exp = Instant.now().plus(SESSION_TTL);
-        sessions.put(id, new Session(id, referenceId, exp, false));
-        log.info("[HYBRID][SESSION_CREATED] sessionId={} referenceId={} expiresAt={}", id, referenceId, exp);
-        return new SessionResponse(id, referenceId, exp);
     }
 
     @PostMapping(value = "/verify", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -68,6 +78,7 @@ public class HybridBestFrameVerificationController {
         if (!session.referenceId().equals(referenceId)) return http(invalid(requestId, referenceId, "REFERENCE_ID_MISMATCH", "The reference ID does not match the verification session."));
         if (image == null || image.isEmpty()) return http(invalid(requestId, referenceId, "INVALID_IMAGE", "A non-empty image is required."));
         if (image.getSize() > MAX_IMAGE_BYTES) return http(invalid(requestId, referenceId, "IMAGE_TOO_LARGE", "The uploaded image exceeds the configured size limit."));
+        try { policyService.validateMethod(session.policy(), "HYBRID_SINGLE_FRAME"); policyService.validatePayload(session.policy(), image.getSize()); } catch (BiometricPolicyViolationException ex) { return http(invalid(requestId, referenceId, ex.code(), ex.getMessage())); }
         String contentType = image.getContentType();
         if (contentType == null || !contentType.startsWith("image/")) return http(invalid(requestId, referenceId, "INVALID_IMAGE_TYPE", "The uploaded content is not a supported image."));
         if (!consume(sessionId)) return http(invalid(requestId, referenceId, "SESSION_REPLAYED", "The verification session has already been consumed."));
@@ -98,7 +109,7 @@ public class HybridBestFrameVerificationController {
         sessions.computeIfPresent(id, (key, session) -> {
             if (session.consumed()) return session;
             accepted.set(true);
-            return new Session(session.sessionId(), session.referenceId(), session.expiresAt(), true);
+            return new Session(session.sessionId(), session.referenceId(), session.expiresAt(), true, session.policy());
         });
         return accepted.get();
     }
@@ -170,6 +181,8 @@ public class HybridBestFrameVerificationController {
         };
     }
 
-    public record SessionResponse(String sessionId, String referenceId, Instant expiresAt) {}
-    private record Session(String sessionId, String referenceId, Instant expiresAt, boolean consumed) {}
+    public record SessionResponse(String sessionId, String referenceId, Instant expiresAt, String policyId, long policyVersion,
+                                  String recognitionModelId, String recognitionModelVersion, double recognitionThreshold) {}
+    public record ErrorResponse(String code, String message) {}
+    private record Session(String sessionId, String referenceId, Instant expiresAt, boolean consumed, BiometricPolicy policy) {}
 }
