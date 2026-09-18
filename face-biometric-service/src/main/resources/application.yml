@@ -18,7 +18,6 @@ biometric:
     enabled: true
     default-profile: ${BIOMETRIC_POLICY_PROFILE:NORMAL}
     selection-mode: ${BIOMETRIC_POLICY_SELECTION_MODE:SERVER_ASSIGNED}
-    profiles:
     method-policies:
       SERVER_FULL_CLIP:
         method: SERVER_FULL_CLIP
@@ -100,6 +99,7 @@ biometric:
         fallback-method: HYBRID_SINGLE_FRAME
         session-ttl-seconds: 120
         version: 1
+    profiles:
       NORMAL:
         method: ${BIOMETRIC_POLICY_METHOD:${BIOMETRIC_CAPTURE_METHOD:HYBRID_MULTI_FRAME}}
         min-duration-seconds: 2.0
