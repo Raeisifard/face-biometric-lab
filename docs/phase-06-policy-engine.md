@@ -55,3 +55,27 @@ Environment overrides:
 The existing biometric implementation remains responsible for detection, quality measurement, liveness inference, embedding generation, and matching. The policy layer only decides and validates the contract.
 
 Fallback is represented as policy metadata in this phase. Adaptive retry/escalation orchestration is deliberately deferred to the next phase.
+
+## Development versus production method selection
+
+The environment is intentionally separated from the biometric risk profile.
+
+- `dev` Spring profile sets `biometric.policy.selection-mode=CLIENT_SELECTABLE`.
+- In dev, the simulator may request `FULL_CLIP`, `LIVE_STREAM`, `CLIENT_EMBEDDING`, `HYBRID_SINGLE_FRAME`, or `HYBRID_MULTI_FRAME`.
+- The policy API resolves the requested method to its corresponding method policy and returns that policy to the simulator.
+- Verification controllers also resolve the policy from the selected method, so changing the simulator method changes the policy contract used for that request.
+- Production uses `SERVER_ASSIGNED`. A client-supplied method is treated as a request/hint only; it is accepted only when it matches the server-assigned policy. It cannot downgrade or replace the server policy.
+
+Start the service with `SPRING_PROFILES_ACTIVE=dev` for free simulator testing. Do not use the dev profile as a production risk-policy concept.
+
+### Method policy API
+
+`GET /api/v1/biometric/policy?method=HYBRID_MULTI_FRAME`
+
+returns the policy associated with that method in `CLIENT_SELECTABLE` mode.
+
+`POST /api/v1/biometric/policy/sessions?referenceId=test-person-01&requestedMethod=HYBRID_MULTI_FRAME`
+
+creates a policy session bound to the requested method's policy.
+
+This preserves the important production property: the client never defines the security constraints; it only requests a mode in the explicitly controlled development environment.
