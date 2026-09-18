@@ -32,7 +32,7 @@ biometric:
         recognition-model-id: arcface-512
         recognition-model-version: w600k-r50
         threshold: 0.65
-        fallback-method: HYBRID_SINGLE_FRAME
+        fallback-method: null
         session-ttl-seconds: 120
         version: 1
       SERVER_LIVE_STREAM:
@@ -48,7 +48,7 @@ biometric:
         recognition-model-id: arcface-512
         recognition-model-version: w600k-r50
         threshold: 0.65
-        fallback-method: HYBRID_SINGLE_FRAME
+        fallback-method: HYBRID_MULTI_FRAME
         session-ttl-seconds: 120
         version: 1
       CLIENT_EMBEDDING:
@@ -80,7 +80,7 @@ biometric:
         recognition-model-id: arcface-512
         recognition-model-version: w600k-r50
         threshold: 0.65
-        fallback-method: SERVER_FULL_CLIP
+        fallback-method: HYBRID_MULTI_FRAME
         session-ttl-seconds: 120
         version: 1
       HYBRID_MULTI_FRAME:
@@ -96,7 +96,7 @@ biometric:
         recognition-model-id: arcface-512
         recognition-model-version: w600k-r50
         threshold: 0.65
-        fallback-method: HYBRID_SINGLE_FRAME
+        fallback-method: SERVER_FULL_CLIP
         session-ttl-seconds: 120
         version: 1
     profiles:
@@ -113,7 +113,7 @@ biometric:
         recognition-model-id: arcface-512
         recognition-model-version: w600k-r50
         threshold: 0.65
-        fallback-method: HYBRID_SINGLE_FRAME
+        fallback-method: SERVER_FULL_CLIP
         session-ttl-seconds: 120
       HIGH_RISK:
         method: ${BIOMETRIC_HIGH_RISK_METHOD:HYBRID_MULTI_FRAME}
@@ -128,7 +128,7 @@ biometric:
         recognition-model-id: arcface-512
         recognition-model-version: w600k-r50
         threshold: 0.70
-        fallback-method: HYBRID_SINGLE_FRAME
+        fallback-method: SERVER_FULL_CLIP
         session-ttl-seconds: 120
       VERY_HIGH_RISK:
         method: ${BIOMETRIC_VERY_HIGH_RISK_METHOD:SERVER_FULL_CLIP}
