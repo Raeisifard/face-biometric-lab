@@ -63,7 +63,7 @@ public class BiometricPolicyController {
     private PolicyResponse response(BiometricPolicy p, String sessionId, Instant expiresAt) {
         return new PolicyResponse(p.policyId(), p.version(), p.profile(), p.method().wireValue(),
                 p.capture().minDurationSeconds(), p.capture().maxDurationSeconds(), p.capture().requiredFrameCount(),
-                p.capture().uploadFps(), p.capture().maxPayloadBytes(), p.liveness().mode(), p.liveness().required(),
+                p.capture().uploadFps(), p.capture().maxPayloadBytes(), p.liveness().mode(), p.liveness().required(), p.minQualityScore(),
                 p.liveness().threshold(), p.recognition().modelId(), p.recognition().modelVersion(), p.recognition().threshold(),
                 p.fallbackMethod(), p.sessionTtlSeconds(), sessionId, expiresAt, true);
     }
