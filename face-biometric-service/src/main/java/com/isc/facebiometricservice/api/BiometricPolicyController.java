@@ -18,7 +18,10 @@ public class BiometricPolicyController {
     public BiometricPolicyController(BiometricPolicyService service) { this.service = service; }
 
     @GetMapping
-    public PolicyResponse current() { return response(service.currentPolicy(), null, null); }
+    public PolicyResponse current(@RequestParam(required = false) String method) {
+        try { return response(method == null || method.isBlank() ? service.currentPolicy() : service.policyForMethod(method), null, null); }
+        catch (BiometricPolicyViolationException ex) { throw ex; }
+    }
 
     @GetMapping("/profiles")
     public Map<String, BiometricPolicy> profiles() { return service.profiles(); }
@@ -28,8 +31,7 @@ public class BiometricPolicyController {
                                            @RequestParam(required = false) String profile,
                                            @RequestParam(required = false) String requestedMethod) {
         try {
-            var session = service.createSession(referenceId, profile);
-            if (requestedMethod != null && !requestedMethod.isBlank()) service.validateMethod(session.policy(), requestedMethod);
+            var session = service.createSession(referenceId, profile, requestedMethod);
             return ResponseEntity.ok(response(session.policy(), session.sessionId(), session.expiresAt()));
         } catch (BiometricPolicyViolationException ex) { return ResponseEntity.badRequest().body(error(ex.code(), ex.getMessage())); }
     }
@@ -65,7 +67,7 @@ public class BiometricPolicyController {
                 p.capture().minDurationSeconds(), p.capture().maxDurationSeconds(), p.capture().requiredFrameCount(),
                 p.capture().uploadFps(), p.capture().maxPayloadBytes(), p.liveness().mode(), p.liveness().required(), p.minQualityScore(),
                 p.liveness().threshold(), p.recognition().modelId(), p.recognition().modelVersion(), p.recognition().threshold(),
-                p.fallbackMethod(), p.sessionTtlSeconds(), sessionId, expiresAt, true);
+                p.fallbackMethod(), p.sessionTtlSeconds(), sessionId, expiresAt, true, service.clientSelectable());
     }
 
     private ErrorResponse error(String code, String message) { return new ErrorResponse(UUID.randomUUID().toString(), code, message, List.of(code)); }
@@ -75,7 +77,7 @@ public class BiometricPolicyController {
                                  double uploadFps, long maxPayloadBytes, String livenessMode, boolean livenessRequired, double minQualityScore,
                                  double livenessThreshold, String recognitionModelId, String recognitionModelVersion,
                                  double recognitionThreshold, String fallbackMethod, long sessionTtlSeconds,
-                                 String sessionId, Instant expiresAt, boolean serverIssued) {}
+                                 String sessionId, Instant expiresAt, boolean serverIssued, boolean clientSelectable) {}
     public record ErrorResponse(String requestId, String code, String message, List<String> reasonCodes) {}
     public record PolicyValidationRequest(String sessionId, String method, Integer frameCount, Long payloadBytes,
                                           Double durationSeconds, Double qualityScore, Double livenessScore, String modelId, String modelVersion) {}
