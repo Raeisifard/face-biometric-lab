@@ -159,7 +159,7 @@ public class AdaptiveVerificationService {
         }
         if (shouldEscalate(s, reason)) {
             String next = s.policy.fallbackMethod();
-            BiometricPolicy nextPolicy = policyService.policyForMethod(next);
+            BiometricPolicy nextPolicy = policyService.escalationPolicyForMethod(next);
             transition(s, AdaptiveVerificationState.ESCALATING);
             s.history.add(event(s, "ESCALATING", nextPolicy.method().wireValue(), reason));
             s.policy = nextPolicy;
