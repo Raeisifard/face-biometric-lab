@@ -182,6 +182,9 @@ window.initHybridMultiFrame = function () {
             if (!response.ok) throw new Error(data.message || 'Frame analysis failed');
 
             const quality = Number(data.qualityScore || 0);
+            // Method 5 client selection is intentionally permissive. Temporal liveness is
+            // diagnostic here; rejecting until frameLooksLive would deadlock capture because
+            // TemporalLivenessEngine needs several accepted samples before it can become LIVE.
             const detection = data.detection || {};
             const liveness = data.liveness || {};
             $('hmf-face').textContent = detection.faceDetected
@@ -190,12 +193,12 @@ window.initHybridMultiFrame = function () {
             $('hmf-current-quality').textContent = quality.toFixed(3);
             $('hmf-live').textContent = liveness.status || 'Checking';
 
-            if (detection.faceDetected && detection.faceCount === 1 && quality >= 0.45 && liveness.frameLooksLive !== false) {
+            if (detection.faceDetected && detection.faceCount === 1 && quality >= 0.35) {
                 frames.push({blob, url: URL.createObjectURL(blob), quality, timestamp, sequence});
                 render();
                 log('FRAME_SELECTED', 'Selected frame ' + frames.length + ' · quality=' + quality.toFixed(3));
             } else {
-                log('FRAME_REJECTED', 'Sample ' + samples + ' did not meet client-side selection criteria');
+                log('FRAME_REJECTED', 'Sample ' + samples + ' rejected · face=' + Boolean(detection.faceDetected) + ' count=' + (detection.faceCount ?? 0) + ' quality=' + quality.toFixed(3) + ' liveness=' + (liveness.status || 'unknown') + ' · client selection is permissive; server remains authoritative');
             }
 
             if (frames.length >= Number($('hmf-target').textContent)) {
