@@ -4,6 +4,7 @@ import com.isc.facebiometricservice.biometric.FaceMatcher;
 import com.isc.facebiometricservice.config.BiometricProperties;
 import com.isc.facebiometricservice.config.VideoVerificationProperties;
 import com.isc.facebiometricservice.policy.BiometricPolicyService;
+import com.isc.facebiometricservice.policy.BiometricPolicy;
 import com.isc.facebiometricservice.policy.BiometricPolicyViolationException;
 import com.isc.facebiometricservice.videoverification.VideoClipDecoder;
 import com.isc.facebiometricservice.videoverification.VideoVerificationEngine;
@@ -27,14 +28,15 @@ public class VideoVerificationController {
     public ResponseEntity<VerificationResponse> verify(@RequestParam(required=false)String requestId,@RequestParam String referenceId,@RequestParam(required=false)String captureMethod,@RequestPart("clip")MultipartFile clip){
         String id=requestId==null||requestId.isBlank()?UUID.randomUUID().toString():requestId;String selectedMethod=captureMethod==null||captureMethod.isBlank()?configuredCaptureMethod:captureMethod.toUpperCase();
         log.info("[VIDEO][VERIFY_RECEIVED] requestId={} referenceId={} captureMethod={} bytes={}",id,referenceId,selectedMethod,clip==null?0:clip.getSize());
-        try { policyService.policyForMethod(selectedMethod); } catch (BiometricPolicyViolationException ex) { return http(response(id,referenceId,selectedMethod,VerificationStatus.INVALID_REQUEST,ex.code(),ex.getMessage(),null,List.of(ex.code()),null,null)); }
+        BiometricPolicy selectedPolicy;
+        try { selectedPolicy = policyService.policyForMethod(selectedMethod); } catch (BiometricPolicyViolationException ex) { return http(response(id,referenceId,selectedMethod,VerificationStatus.INVALID_REQUEST,ex.code(),ex.getMessage(),null,List.of(ex.code()),null,null)); }
         if(!"FULL_CLIP".equals(selectedMethod)||!("FULL_CLIP".equalsIgnoreCase(configuredCaptureMethod)||"FREE_METHOD".equalsIgnoreCase(configuredCaptureMethod)))return http(response(id,referenceId,selectedMethod,VerificationStatus.INVALID_REQUEST,"CAPTURE_MODE_NOT_ALLOWED","The requested capture mode is not enabled.",null,List.of("CAPTURE_MODE_NOT_ALLOWED"),null,null));
         if(!properties.enabled())return http(response(id,referenceId,selectedMethod,VerificationStatus.INCONCLUSIVE,"VIDEO_VERIFICATION_DISABLED","Video verification is currently disabled.",null,List.of("VIDEO_VERIFICATION_DISABLED"),null,null));
         if(clip==null||clip.isEmpty())return http(response(id,referenceId,selectedMethod,VerificationStatus.INVALID_REQUEST,"INVALID_VIDEO","A non-empty video clip is required.",null,List.of("INVALID_VIDEO"),null,null));
         if(clip.getSize()>properties.maxClipBytes())return http(response(id,referenceId,selectedMethod,VerificationStatus.INVALID_REQUEST,"VIDEO_TOO_LARGE","The uploaded video exceeds the configured size limit.",null,List.of("VIDEO_TOO_LARGE"),null,null));
-        try { policyService.validatePayload(policyService.currentPolicy(), clip.getSize()); } catch (BiometricPolicyViolationException ex) { return http(response(id,referenceId,selectedMethod,VerificationStatus.INVALID_REQUEST,ex.code(),ex.getMessage(),null,List.of(ex.code()),null,null)); }
+        try { policyService.validatePayload(selectedPolicy, clip.getSize()); } catch (BiometricPolicyViolationException ex) { return http(response(id,referenceId,selectedMethod,VerificationStatus.INVALID_REQUEST,ex.code(),ex.getMessage(),null,List.of(ex.code()),null,null)); }
         try{
-            var decoded=decoder.decode(clip,properties.sampleFps(),referenceId); policyService.validateDuration(policyService.currentPolicy(), decoded.durationSeconds()); var outcome=engine.verify(id,decoded,referenceId);VerificationStatus status=VerificationStatus.valueOf(outcome.result());String code=primaryCode(outcome.result(),outcome.reasons());String message=message(status,code);
+            var decoded=decoder.decode(clip,properties.sampleFps(),referenceId); policyService.validateDuration(selectedPolicy, decoded.durationSeconds()); var outcome=engine.verify(id,decoded,referenceId);VerificationStatus status=VerificationStatus.valueOf(outcome.result());String code=primaryCode(outcome.result(),outcome.reasons());String message=message(status,code);
             var quality=new VerificationResponse.QualityLiveness(null,null,outcome.livenessScore());var metrics=new VerificationResponse.Metrics(outcome.processingMs(),outcome.decodedFrames(),outcome.recognitionFrames(),clip.getSize());
             return http(response(id,referenceId,selectedMethod,status,code,message,outcome.similarity(),outcome.reasons(),quality,metrics));
         }catch(BiometricPolicyViolationException e){String code=e.code();return http(response(id,referenceId,selectedMethod,VerificationStatus.INVALID_REQUEST,code,e.getMessage(),null,List.of(code),null,null));
