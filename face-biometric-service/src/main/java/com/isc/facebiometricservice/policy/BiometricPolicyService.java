@@ -51,7 +51,7 @@ public class BiometricPolicyService {
         long version = positive(definition.version(), 1);
         return new BiometricPolicy("biometric-" + profile.toLowerCase(), version, profile, method,
                 new BiometricPolicy.CaptureRequirements(minDuration, maxDuration, frames, fps, maxPayload),
-                new BiometricPolicy.LivenessRequirements(livenessMode, !"NONE".equalsIgnoreCase(livenessMode), definition.threshold() > 0 ? 0.50 : 0.50),
+                new BiometricPolicy.LivenessRequirements(livenessMode, !"NONE".equalsIgnoreCase(livenessMode), definition.livenessThreshold() > 0 ? definition.livenessThreshold() : 0.50),
                 Math.max(0, definition.minQualityScore()),
                 new BiometricPolicy.RecognitionRequirements(modelId, modelVersion, threshold), fallback, ttl, Instant.now());
     }
