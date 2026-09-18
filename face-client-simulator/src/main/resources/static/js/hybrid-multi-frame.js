@@ -5,6 +5,7 @@ window.initHybridMultiFrame = function () {
 
     let running = false;
     let sessionId = null;
+    let policySessionId = null;
     let frames = [];
     let timer = null;
     let samples = 0;
@@ -144,11 +145,17 @@ window.initHybridMultiFrame = function () {
     const createSession = async () => {
         const reference = $('hmf-reference').value.trim();
         const count = Number($('hmf-count').value);
-        const response = await fetch('/api/v1/simulator/hybrid-multi-frame/sessions?referenceId=' + encodeURIComponent(reference) + '&frames=' + count, {method: 'POST'});
+        const policyResponse = await fetch('/api/v1/simulator/policy/sessions?referenceId=' + encodeURIComponent(reference), {method: 'POST'});
+        const policy = await policyResponse.json();
+        if (!policyResponse.ok || !policy.sessionId) throw new Error(policy.message || 'Policy session creation failed');
+        policySessionId = policy.sessionId;
+        const target = Number(policy.requiredFrameCount || count);
+        $('hmf-target').textContent = target;
+        const response = await fetch('/api/v1/simulator/hybrid-multi-frame/sessions?referenceId=' + encodeURIComponent(reference) + '&frames=' + target + '&policySessionId=' + encodeURIComponent(policySessionId), {method: 'POST'});
         const data = await response.json();
         if (!response.ok || !data.sessionId) throw new Error(data.message || 'Session creation failed');
         sessionId = data.sessionId;
-        $('hmf-target').textContent = data.expectedFrames || count;
+        $('hmf-target').textContent = data.expectedFrames || target;
         $('hmf-aggregation').textContent = data.aggregation || 'MEAN';
         return data;
     };
@@ -300,6 +307,7 @@ window.initHybridMultiFrame = function () {
             setStatus(data.result || 'INCONCLUSIVE');
             log('SERVER_RESULT', 'result=' + (data.result || '-') + ' · similarity=' + (data.similarity ?? '-'));
             sessionId = null;
+        policySessionId = null;
         } catch (error) {
             $('hmf-verify').disabled = false;
             setStatus('SERVER_ERROR');
