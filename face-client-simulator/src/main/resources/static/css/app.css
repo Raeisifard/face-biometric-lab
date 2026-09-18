@@ -114,7 +114,7 @@ pre { white-space: pre-wrap; word-break: break-word; color: #cbd5e1 }
 /* Phase 06 policy and camera alignment refinements */
 .topbar-title-line { display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; }
 .topbar-title-line h1 { margin:0; }
-.topbar-subtitle { margin:0 !important; color:#93a4b8; font-size:13px; line-height:1.4; }
+.topbar-subtitle { margin:0 !important; color:#93a4b8; font-size:13px; line-height:1.4; }\n.topbar-separator { color:#4d6175; font-size:16px; }
 .method-nav { display:flex; align-items:center; }
 .method-icon { flex:0 0 44px; width:44px; height:44px; display:inline-flex; align-items:center; justify-content:center; margin-right:12px; line-height:1; }
 .method-nav > span:not(.method-icon) { min-width:0; }
