@@ -9,7 +9,7 @@ class BiometricPolicyServiceTest {
     @Test
     void selectsConfiguredMethodAndBindsSession() {
         var definition = new BiometricPolicyProperties.PolicyDefinition("HYBRID_MULTI_FRAME", 2, 6, 4, 4, 10_000, "PASSIVE", 0.50, 0.45, "arcface-512", "w600k-r50", 0.65, "HYBRID_SINGLE_FRAME", 120, 7);
-        var service = new BiometricPolicyService(new BiometricPolicyProperties(true, "NORMAL", Map.of("NORMAL", definition)), "FREE_METHOD");
+        var service = new BiometricPolicyService(new BiometricPolicyProperties(true, "NORMAL", "SERVER_ASSIGNED", Map.of("NORMAL", definition), Map.of()), "FREE_METHOD");
         var session = service.createSession("user-1", "NORMAL");
         assertEquals("HYBRID_MULTI_FRAME", session.policy().method().wireValue());
         assertEquals(7, session.policy().version());
@@ -32,7 +32,7 @@ class BiometricPolicyServiceTest {
 
     @Test
     void rejectsUnknownProfile() {
-        var service = new BiometricPolicyService(new BiometricPolicyProperties(true, "NORMAL", Map.of()), "FREE_METHOD");
+        var service = new BiometricPolicyService(new BiometricPolicyProperties(true, "NORMAL", "SERVER_ASSIGNED", Map.of(), Map.of()), "FREE_METHOD");
         assertThrows(BiometricPolicyViolationException.class, () -> service.policyFor("HIGH_RISK"));
     }
 }
