@@ -8,11 +8,15 @@ import java.util.Map;
 public record BiometricPolicyProperties(
         boolean enabled,
         String defaultProfile,
-        Map<String, PolicyDefinition> profiles) {
+        String selectionMode,
+        Map<String, PolicyDefinition> profiles,
+        Map<String, PolicyDefinition> methodPolicies) {
 
     public BiometricPolicyProperties {
         defaultProfile = defaultProfile == null || defaultProfile.isBlank() ? "NORMAL" : defaultProfile.toUpperCase();
+        selectionMode = selectionMode == null || selectionMode.isBlank() ? "SERVER_ASSIGNED" : selectionMode.toUpperCase();
         profiles = profiles == null ? Map.of() : Map.copyOf(profiles);
+        methodPolicies = methodPolicies == null ? Map.of() : Map.copyOf(methodPolicies);
     }
 
     public record PolicyDefinition(
