@@ -1,0 +1,3 @@
+biometric:
+  policy:
+    selection-mode: SERVER_ASSIGNED
