@@ -17,7 +17,89 @@ biometric:
   policy:
     enabled: true
     default-profile: ${BIOMETRIC_POLICY_PROFILE:NORMAL}
+    selection-mode: ${BIOMETRIC_POLICY_SELECTION_MODE:SERVER_ASSIGNED}
     profiles:
+    method-policies:
+      SERVER_FULL_CLIP:
+        method: SERVER_FULL_CLIP
+        min-duration-seconds: 3.0
+        max-duration-seconds: 5.0
+        required-frame-count: 0
+        upload-fps: 4.0
+        max-payload-bytes: 26214400
+        liveness-mode: PASSIVE
+        liveness-threshold: 0.50
+        min-quality-score: 0.45
+        recognition-model-id: arcface-512
+        recognition-model-version: w600k-r50
+        threshold: 0.65
+        fallback-method: HYBRID_SINGLE_FRAME
+        session-ttl-seconds: 120
+        version: 1
+      SERVER_LIVE_STREAM:
+        method: SERVER_LIVE_STREAM
+        min-duration-seconds: 2.0
+        max-duration-seconds: 8.0
+        required-frame-count: 5
+        upload-fps: 4.0
+        max-payload-bytes: 8388608
+        liveness-mode: PASSIVE
+        liveness-threshold: 0.50
+        min-quality-score: 0.45
+        recognition-model-id: arcface-512
+        recognition-model-version: w600k-r50
+        threshold: 0.65
+        fallback-method: HYBRID_SINGLE_FRAME
+        session-ttl-seconds: 120
+        version: 1
+      CLIENT_EMBEDDING:
+        method: CLIENT_EMBEDDING
+        min-duration-seconds: 0.0
+        max-duration-seconds: 0.0
+        required-frame-count: 1
+        upload-fps: 0.0
+        max-payload-bytes: 1048576
+        liveness-mode: NONE
+        liveness-threshold: 0.0
+        min-quality-score: 0.45
+        recognition-model-id: mobilefacenet-512
+        recognition-model-version: w600k-mbf
+        threshold: 0.65
+        fallback-method: HYBRID_SINGLE_FRAME
+        session-ttl-seconds: 120
+        version: 1
+      HYBRID_SINGLE_FRAME:
+        method: HYBRID_SINGLE_FRAME
+        min-duration-seconds: 0.0
+        max-duration-seconds: 0.0
+        required-frame-count: 1
+        upload-fps: 0.0
+        max-payload-bytes: 8388608
+        liveness-mode: PASSIVE
+        liveness-threshold: 0.50
+        min-quality-score: 0.45
+        recognition-model-id: arcface-512
+        recognition-model-version: w600k-r50
+        threshold: 0.65
+        fallback-method: SERVER_FULL_CLIP
+        session-ttl-seconds: 120
+        version: 1
+      HYBRID_MULTI_FRAME:
+        method: HYBRID_MULTI_FRAME
+        min-duration-seconds: 1.0
+        max-duration-seconds: 6.0
+        required-frame-count: 4
+        upload-fps: 4.0
+        max-payload-bytes: 26214400
+        liveness-mode: PASSIVE
+        liveness-threshold: 0.50
+        min-quality-score: 0.45
+        recognition-model-id: arcface-512
+        recognition-model-version: w600k-r50
+        threshold: 0.65
+        fallback-method: HYBRID_SINGLE_FRAME
+        session-ttl-seconds: 120
+        version: 1
       NORMAL:
         method: ${BIOMETRIC_POLICY_METHOD:${BIOMETRIC_CAPTURE_METHOD:HYBRID_MULTI_FRAME}}
         min-duration-seconds: 2.0
