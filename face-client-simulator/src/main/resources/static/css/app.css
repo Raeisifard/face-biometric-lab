@@ -118,3 +118,11 @@ pre { white-space: pre-wrap; word-break: break-word; color: #cbd5e1 }
 .topbar-subtitle { margin: 0 0 4px !important; color: #93a4b8; font-size: 13px; line-height: 1.4; }
 .topbar h1 { margin-top: 0; }
 .camera-card .camera-stage .camera-guide { width: 84%; }
+
+/* UI alignment refinements */
+.method-nav { display: flex; align-items: center; }
+.method-icon { flex: 0 0 44px; width: 44px; height: 44px; display: inline-flex; align-items: center; justify-content: center; margin-right: 12px; line-height: 1; }
+.method-nav > span:not(.method-icon) { min-width: 0; }
+.topbar-subtitle { margin: 0 0 4px !important; color: #93a4b8; font-size: 13px; line-height: 1.4; }
+.topbar h1 { margin-top: 0; }
+.camera-card .camera-stage .camera-guide { width: 84%; }
