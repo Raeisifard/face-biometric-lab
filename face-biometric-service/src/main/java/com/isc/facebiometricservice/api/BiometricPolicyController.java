@@ -18,9 +18,9 @@ public class BiometricPolicyController {
     public BiometricPolicyController(BiometricPolicyService service) { this.service = service; }
 
     @GetMapping
-    public PolicyResponse current(@RequestParam(required = false) String method) {
-        try { return response(method == null || method.isBlank() ? service.currentPolicy() : service.policyForMethod(method), null, null); }
-        catch (BiometricPolicyViolationException ex) { throw ex; }
+    public ResponseEntity<?> current(@RequestParam(required = false) String method) {
+        try { return ResponseEntity.ok(response(method == null || method.isBlank() ? service.currentPolicy() : service.policyForMethod(method), null, null)); }
+        catch (BiometricPolicyViolationException ex) { return ResponseEntity.badRequest().body(error(ex.code(), ex.getMessage())); }
     }
 
     @GetMapping("/profiles")
