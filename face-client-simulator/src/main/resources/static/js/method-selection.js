@@ -40,6 +40,7 @@ function setPolicyText(id,value){const e=document.getElementById(id);if(e)e.text
 function formatBytes(n){if(!n)return'0 B';if(n<1024)return n+' B';if(n<1048576)return(n/1024).toFixed(1)+' KB';return(n/1048576).toFixed(2)+' MB';}
 
 function renderPolicy(policy){
+    window.biometricClientSelectable=Boolean(policy.clientSelectable);
     window.biometricPolicy=policy;
     setPolicyText('policy-profile',policy.profile||'-');
     setPolicyText('policy-method',policy.method||'-');
@@ -109,6 +110,27 @@ function applyServerMethod(method){
     if(window.clientEmbeddingSelect)window.clientEmbeddingSelect(method);
 }
 
+async function selectPolicyMethod(method){
+    try {
+        const response=await fetch('/api/v1/simulator/policy?method='+encodeURIComponent(method));
+        const policy=await response.json();
+        if(!response.ok) throw new Error(policy.message || policy.code || 'Method is not allowed by server policy');
+        renderPolicy(policy);
+        applyServerMethod(policy.method);
+        const reference=(document.getElementById('hmf-reference')?.value||'test-person-01').trim();
+        const session=await fetch('/api/v1/simulator/policy/sessions?referenceId='+encodeURIComponent(reference)+'&requestedMethod='+encodeURIComponent(method),{method:'POST'});
+        const sessionData=await session.json();
+        if(!session.ok) throw new Error(sessionData.message || sessionData.code || 'Policy session creation failed');
+        window.biometricPolicySessionId=sessionData.sessionId;
+        setPolicyText('policy-session-id','Session '+sessionData.sessionId);
+        setPolicyText('policy-expiry',sessionData.expiresAt?new Date(sessionData.expiresAt).toLocaleTimeString():'-');
+        return true;
+    } catch(e) {
+        setPolicyText('policy-diagnostic-result','Method '+method+' was not accepted by the server policy: '+e.message);
+        return false;
+    }
+}
+
 async function loadPolicy(){
     ensureMultiFrameUi();
     try{
@@ -132,8 +154,12 @@ function init(){
         const toggle=document.createElement('button');toggle.type='button';toggle.className='sidebar-toggle';toggle.setAttribute('aria-label','Collapse navigation');toggle.title='Collapse navigation';toggle.textContent='☰';sidebar.prepend(toggle);
         toggle.addEventListener('click',()=>{const collapsed=layout.classList.toggle('nav-collapsed');toggle.setAttribute('aria-label',collapsed?'Expand navigation':'Collapse navigation');toggle.title=collapsed?'Expand navigation':'Collapse navigation';});
     }
-    document.querySelectorAll('.method-nav').forEach(button=>button.addEventListener('click',event=>{
-        if(button.getAttribute('aria-disabled')==='true'){event.preventDefault();return;}
+    document.querySelectorAll('.method-nav').forEach(button=>button.addEventListener('click',async event=>{
+        event.preventDefault();
+        const method=button.classList.contains('live-nav')?'LIVE_STREAM':button.classList.contains('clip-nav')?'FULL_CLIP':button.classList.contains('client-nav')?'CLIENT_EMBEDDING':button.classList.contains('hybrid-nav')?'HYBRID_SINGLE_FRAME':button.classList.contains('hybrid-multi-nav')?'HYBRID_MULTI_FRAME':null;
+        if(!method)return;
+        if(button.getAttribute('aria-disabled')==='true' && !window.biometricClientSelectable)return;
+        if(window.biometricClientSelectable) await selectPolicyMethod(method);
     }));
     document.getElementById('policy-session')?.addEventListener('click',async()=>{try{await createPolicySession();}catch(e){setPolicyText('policy-diagnostic-result',e.message);}});
     loadPolicy().then(()=>{if(window.initHybridMultiFrame)window.initHybridMultiFrame();});
