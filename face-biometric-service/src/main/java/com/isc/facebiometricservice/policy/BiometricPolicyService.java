@@ -3,6 +3,7 @@ package com.isc.facebiometricservice.policy;
 import com.isc.facebiometricservice.config.BiometricPolicyProperties;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.env.Environment;
+import org.springframework.core.env.StandardEnvironment;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -23,6 +24,10 @@ public class BiometricPolicyService {
                                   @Value("${biometric.capture-method:FREE_METHOD}") String legacyCaptureMethod) {
         this.properties = properties;
         this.legacyCaptureMethod = legacyCaptureMethod;
+    }
+
+    public BiometricPolicyService(BiometricPolicyProperties properties, String legacyCaptureMethod) {
+        this(properties, new StandardEnvironment(), legacyCaptureMethod);
     }
 
     public boolean clientSelectable() { return "CLIENT_SELECTABLE".equals(properties.selectionMode()) && !environment.matchesProfiles("prod"); }
