@@ -46,7 +46,7 @@ class AdaptiveVerificationServiceTest {
         assertTrue(escalated.escalated());
         assertEquals("HYBRID_MULTI_FRAME", escalated.method());
         assertEquals(AdaptiveVerificationState.CAPTURING, escalated.state());
-        var completed = service.verifyFrames(created.sessionId(), List.of(new byte[]{1}, new byte[]{2}));
+        var completed = service.verifyFrames(created.sessionId(), List.of(new byte[]{1}, new byte[]{2}, new byte[]{3}, new byte[]{4}));
         assertEquals("MATCH", completed.result());
         assertFalse(completed.escalated());
         assertEquals(AdaptiveVerificationState.COMPLETED, completed.state());
