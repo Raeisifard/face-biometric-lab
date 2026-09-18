@@ -58,7 +58,11 @@ public class BiometricController {
 
     @PostMapping("/verify-embedding")
     public ResponseEntity<VerificationResponse> verifyLegacy(@Valid @RequestBody EmbeddingPayload p) {
-        policyService.validateMethod(policyService.currentPolicy(), "CLIENT_EMBEDDING");
+        // Resolve the policy for the actual requested method. In dev CLIENT_SELECTABLE
+        // mode, currentPolicy() is the default profile and may be a different method.
+        // The simulator still uses this legacy endpoint, so it must follow the same
+        // method-specific policy resolution as the canonical /verify endpoint.
+        policyService.policyForMethod("CLIENT_EMBEDDING");
         require(p);
         String requestId = UUID.randomUUID().toString();
         VerificationRequest request = new VerificationRequest(
