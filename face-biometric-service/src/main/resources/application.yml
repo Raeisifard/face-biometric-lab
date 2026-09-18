@@ -14,6 +14,52 @@ spring:
 biometric:
   capture-method: ${BIOMETRIC_CAPTURE_METHOD:FREE_METHOD} # LIVE_STREAM, FULL_CLIP, CLIENT_EMBEDDING, or FREE_METHOD
   repository-type: property
+  policy:
+    enabled: true
+    default-profile: ${BIOMETRIC_POLICY_PROFILE:NORMAL}
+    profiles:
+      NORMAL:
+        method: ${BIOMETRIC_POLICY_METHOD:${BIOMETRIC_CAPTURE_METHOD:HYBRID_MULTI_FRAME}}
+        min-duration-seconds: 2.0
+        max-duration-seconds: 6.0
+        required-frame-count: 4
+        upload-fps: 4.0
+        max-payload-bytes: 26214400
+        liveness-mode: PASSIVE
+        min-quality-score: 0.45
+        recognition-model-id: arcface-512
+        recognition-model-version: w600k-r50
+        threshold: 0.65
+        fallback-method: HYBRID_SINGLE_FRAME
+        session-ttl-seconds: 120
+      HIGH_RISK:
+        method: ${BIOMETRIC_HIGH_RISK_METHOD:HYBRID_MULTI_FRAME}
+        min-duration-seconds: 3.0
+        max-duration-seconds: 8.0
+        required-frame-count: 6
+        upload-fps: 5.0
+        max-payload-bytes: 26214400
+        liveness-mode: ACTIVE
+        min-quality-score: 0.50
+        recognition-model-id: arcface-512
+        recognition-model-version: w600k-r50
+        threshold: 0.70
+        fallback-method: HYBRID_SINGLE_FRAME
+        session-ttl-seconds: 120
+      VERY_HIGH_RISK:
+        method: ${BIOMETRIC_VERY_HIGH_RISK_METHOD:SERVER_FULL_CLIP}
+        min-duration-seconds: 3.0
+        max-duration-seconds: 10.0
+        required-frame-count: 0
+        upload-fps: 4.0
+        max-payload-bytes: 26214400
+        liveness-mode: PASSIVE
+        min-quality-score: 0.55
+        recognition-model-id: arcface-512
+        recognition-model-version: w600k-r50
+        threshold: 0.72
+        fallback-method: null
+        session-ttl-seconds: 120
   model-id: arcface-512
   model-version: w600k-r50
   model-path: ${BIOMETRIC_MODEL_PATH:models/recognition/w600k_r50.onnx}
