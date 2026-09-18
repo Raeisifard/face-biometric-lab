@@ -54,6 +54,24 @@ public class BiometricPolicyService {
         return policyFor(properties.defaultProfile());
     }
 
+    /** Resolve a server-authorized escalation target. Unlike policyForMethod(), this method is never a client selection path. */
+    public BiometricPolicy escalationPolicyForMethod(String targetMethod) {
+        BiometricPolicyMethod method;
+        try {
+            method = BiometricPolicyMethod.parse(targetMethod);
+        } catch (IllegalArgumentException ex) {
+            throw new BiometricPolicyViolationException("UNSUPPORTED_METHOD",
+                    "Unsupported escalation method: " + targetMethod);
+        }
+        var definition = properties.methodPolicies().get(method.wireValue());
+        if (definition == null) definition = properties.methodPolicies().get(method.name());
+        if (definition == null) {
+            throw new BiometricPolicyViolationException("ESCALATION_POLICY_NOT_CONFIGURED",
+                    "No escalation policy is configured for " + method.wireValue());
+        }
+        return buildPolicy("ESCALATION-" + method.wireValue(), definition, method);
+    }
+
     public BiometricPolicy policyForMethod(String requestedMethod) {
         BiometricPolicyMethod method;
         try {
