@@ -4,3 +4,8 @@
 .multi-frame-strip { justify-content: center; padding-left: 10px; padding-right: 10px; }
 .multi-frame-item { flex: 0 0 92px; }
 @media (max-width: 600px) { .multi-frame-item { flex-basis: 82px; } }
+
+/* Keep the selected-frame reel visually centered when it fits; preserve horizontal scrolling when it does not. */
+.multi-frame-strip { justify-content: center; padding-left: 10px; padding-right: 10px; }
+.multi-frame-item { flex: 0 0 92px; }
+@media (max-width: 600px) { .multi-frame-item { flex-basis: 82px; } }
