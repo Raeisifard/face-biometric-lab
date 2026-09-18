@@ -71,7 +71,7 @@ public class BiometricPolicyController {
 
     public record PolicyResponse(String policyId, long version, String profile, String method,
                                  double minDurationSeconds, double maxDurationSeconds, int requiredFrameCount,
-                                 double uploadFps, long maxPayloadBytes, String livenessMode, boolean livenessRequired,
+                                 double uploadFps, long maxPayloadBytes, String livenessMode, boolean livenessRequired, double minQualityScore,
                                  double livenessThreshold, String recognitionModelId, String recognitionModelVersion,
                                  double recognitionThreshold, String fallbackMethod, long sessionTtlSeconds,
                                  String sessionId, Instant expiresAt, boolean serverIssued) {}
