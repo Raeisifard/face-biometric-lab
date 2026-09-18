@@ -43,12 +43,14 @@ public class HybridMultiFrameVerificationController {
 
     @PostMapping("/sessions")
     public ResponseEntity<?> createSession(@RequestParam String referenceId,
-                                            @RequestParam(required = false) Integer requestedFrames) {
+                                            @RequestParam(required = false) Integer requestedFrames,
+                                            @RequestParam(required = false) String policySessionId) {
         try {
             if (!properties.enabled()) return invalid(null, referenceId, "HYBRID_MULTI_FRAME_DISABLED", "Hybrid multi-frame verification is disabled.");
             if (referenceId == null || referenceId.isBlank()) return invalid(null, referenceId, "REFERENCE_REQUIRED", "Reference ID is required.");
 
-            BiometricPolicy policy = policyService.currentPolicy();
+            BiometricPolicy policy = policySessionId == null || policySessionId.isBlank()
+                    ? policyService.currentPolicy() : policyService.requireSession(policySessionId).policy();
             policyService.validateMethod(policy, "HYBRID_MULTI_FRAME");
             int count = policy.capture().requiredFrameCount() > 0 ? policy.capture().requiredFrameCount() : properties.defaultFrames();
             if (requestedFrames != null && requestedFrames != count) {
@@ -61,7 +63,7 @@ public class HybridMultiFrameVerificationController {
 
             String id = UUID.randomUUID().toString();
             Instant expiresAt = Instant.now().plusSeconds(policy.sessionTtlSeconds());
-            sessions.put(id, new Session(id, referenceId, count, expiresAt, false, policy.policyId(), policy.version()));
+            sessions.put(id, new Session(id, referenceId, count, expiresAt, false, policy));
             return ResponseEntity.ok(new SessionResponse(id, referenceId, count, properties.maxFrames(),
                     policy.liveness().mode(), "MEAN", expiresAt, policy.policyId(), policy.version(),
                     policy.recognition().modelId(), policy.recognition().modelVersion(), policy.recognition().threshold()));
@@ -83,10 +85,7 @@ public class HybridMultiFrameVerificationController {
         if (!session.referenceId().equals(referenceId)) return invalid(requestId, referenceId, "REFERENCE_ID_MISMATCH", "The reference ID does not match the verification session.");
         if (!consume(sessionId)) return invalid(requestId, referenceId, "SESSION_REPLAYED", "The verification session has already been consumed.");
         try {
-            BiometricPolicy policy = policyService.currentPolicy();
-            if (!policy.policyId().equals(session.policyId()) || policy.version() != session.policyVersion()) {
-                policy = policyService.policyFor(policy.profile());
-            }
+            BiometricPolicy policy = session.policy();
             policyService.validateMethod(policy, "HYBRID_MULTI_FRAME");
             if (images == null || images.isEmpty()) return invalid(requestId, referenceId, "FRAMES_REQUIRED", "At least one frame is required.");
             policyService.validateFrameCount(policy, images.size());
@@ -144,7 +143,7 @@ public class HybridMultiFrameVerificationController {
         sessions.computeIfPresent(id, (key, value) -> {
             if (value.consumed()) return value;
             accepted.set(true);
-            return new Session(value.sessionId(), value.referenceId(), value.expectedFrames(), value.expiresAt(), true, value.policyId(), value.policyVersion());
+            return new Session(value.sessionId(), value.referenceId(), value.expectedFrames(), value.expiresAt(), true, value.policy());
         });
         return accepted.get();
     }
@@ -179,5 +178,5 @@ public class HybridMultiFrameVerificationController {
                                   String policyId, long policyVersion, String recognitionModelId,
                                   String recognitionModelVersion, double recognitionThreshold) {}
     private record Session(String sessionId, String referenceId, int expectedFrames, Instant expiresAt,
-                           boolean consumed, String policyId, long policyVersion) {}
+                           boolean consumed, BiometricPolicy policy) {}
 }
