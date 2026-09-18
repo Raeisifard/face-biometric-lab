@@ -8,7 +8,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class BiometricPolicyServiceTest {
     @Test
     void selectsConfiguredMethodAndBindsSession() {
-        var definition = new BiometricPolicyProperties.PolicyDefinition("HYBRID_MULTI_FRAME", 2, 6, 4, 4, 10_000, "PASSIVE", 0.45, "arcface-512", "w600k-r50", 0.65, "HYBRID_SINGLE_FRAME", 120, 7);
+        var definition = new BiometricPolicyProperties.PolicyDefinition("HYBRID_MULTI_FRAME", 2, 6, 4, 4, 10_000, "PASSIVE", 0.50, 0.45, "arcface-512", "w600k-r50", 0.65, "HYBRID_SINGLE_FRAME", 120, 7);
         var service = new BiometricPolicyService(new BiometricPolicyProperties(true, "NORMAL", Map.of("NORMAL", definition)), "FREE_METHOD");
         var session = service.createSession("user-1", "NORMAL");
         assertEquals("HYBRID_MULTI_FRAME", session.policy().method().wireValue());
