@@ -42,6 +42,7 @@ public class BiometricPolicyController {
             if (request.frameCount() != null) service.validateFrameCount(session.policy(), request.frameCount());
             if (request.payloadBytes() != null) service.validatePayload(session.policy(), request.payloadBytes());
             if (request.durationSeconds() != null) service.validateDuration(session.policy(), request.durationSeconds());
+            if (request.qualityScore() != null) service.validateQuality(session.policy(), request.qualityScore());
             if (request.livenessScore() != null) service.validateLiveness(session.policy(), request.livenessScore());
             if (request.modelId() != null || request.modelVersion() != null)
                 service.validateModel(session.policy(), request.modelId(), request.modelVersion());
@@ -77,6 +78,6 @@ public class BiometricPolicyController {
                                  String sessionId, Instant expiresAt, boolean serverIssued) {}
     public record ErrorResponse(String requestId, String code, String message, List<String> reasonCodes) {}
     public record PolicyValidationRequest(String sessionId, String method, Integer frameCount, Long payloadBytes,
-                                          Double durationSeconds, Double livenessScore, String modelId, String modelVersion) {}
+                                          Double durationSeconds, Double qualityScore, Double livenessScore, String modelId, String modelVersion) {}
     public record ValidationResponse(boolean valid, String policyId, long policyVersion, String message) {}
 }
