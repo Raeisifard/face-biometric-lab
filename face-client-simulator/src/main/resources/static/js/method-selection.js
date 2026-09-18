@@ -74,11 +74,12 @@ async function runPolicyTest(kind){
     const out=document.getElementById('policy-diagnostic-result');
     if(!window.biometricPolicySessionId)await createPolicySession();
     const p=window.biometricPolicy;
-    const request={sessionId:window.biometricPolicySessionId,method:p.method,frameCount:p.requiredFrameCount,payloadBytes:Math.min(p.maxPayloadBytes,1),durationSeconds:Math.max(p.minDurationSeconds,0),livenessScore:p.livenessRequired?p.livenessThreshold:1,modelId:p.recognitionModelId,modelVersion:p.recognitionModelVersion};
+    const request={sessionId:window.biometricPolicySessionId,method:p.method,frameCount:p.requiredFrameCount,payloadBytes:Math.min(p.maxPayloadBytes,1),durationSeconds:Math.max(p.minDurationSeconds,0),qualityScore:p.minQualityScore,livenessScore:p.livenessRequired?p.livenessThreshold:1,modelId:p.recognitionModelId,modelVersion:p.recognitionModelVersion};
     if(kind==='method')request.method=p.method==='FULL_CLIP'?'LIVE_STREAM':'FULL_CLIP';
     if(kind==='frames')request.frameCount=(p.requiredFrameCount||1)+1;
     if(kind==='payload')request.payloadBytes=p.maxPayloadBytes+1;
     if(kind==='duration')request.durationSeconds=p.maxDurationSeconds+1;
+    if(kind==='quality')request.qualityScore=0;
     if(kind==='liveness')request.livenessScore=0;
     if(kind==='model'){request.modelId='wrong-model';request.modelVersion='wrong-version';}
     out.textContent='Testing '+kind+'...';
