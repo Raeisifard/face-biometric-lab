@@ -49,8 +49,7 @@ public class HybridBestFrameVerificationController {
     public ResponseEntity<?> createSession(@RequestParam String referenceId) {
         try {
             if (referenceId == null || referenceId.isBlank()) return ResponseEntity.badRequest().body(new ErrorResponse("REFERENCE_REQUIRED", "referenceId is required"));
-            BiometricPolicy policy = policyService.currentPolicy();
-            policyService.validateMethod(policy, "HYBRID_SINGLE_FRAME");
+            BiometricPolicy policy = policyService.policyForMethod("HYBRID_SINGLE_FRAME");
             String id = UUID.randomUUID().toString();
             Instant exp = Instant.now().plusSeconds(policy.sessionTtlSeconds());
             sessions.put(id, new Session(id, referenceId, exp, false, policy));
