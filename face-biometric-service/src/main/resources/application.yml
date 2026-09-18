@@ -26,6 +26,7 @@ biometric:
         upload-fps: 4.0
         max-payload-bytes: 26214400
         liveness-mode: PASSIVE
+        liveness-threshold: 0.50
         min-quality-score: 0.45
         recognition-model-id: arcface-512
         recognition-model-version: w600k-r50
@@ -40,6 +41,7 @@ biometric:
         upload-fps: 5.0
         max-payload-bytes: 26214400
         liveness-mode: ACTIVE
+        liveness-threshold: 0.60
         min-quality-score: 0.50
         recognition-model-id: arcface-512
         recognition-model-version: w600k-r50
