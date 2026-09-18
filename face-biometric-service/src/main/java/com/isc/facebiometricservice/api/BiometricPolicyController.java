@@ -34,6 +34,23 @@ public class BiometricPolicyController {
         } catch (BiometricPolicyViolationException ex) { return ResponseEntity.badRequest().body(error(ex.code(), ex.getMessage())); }
     }
 
+    @PostMapping("/validate")
+    public ResponseEntity<?> validate(@RequestBody PolicyValidationRequest request) {
+        try {
+            var session = service.requireSession(request.sessionId());
+            service.validateMethod(session.policy(), request.method());
+            if (request.frameCount() != null) service.validateFrameCount(session.policy(), request.frameCount());
+            if (request.payloadBytes() != null) service.validatePayload(session.policy(), request.payloadBytes());
+            if (request.durationSeconds() != null) service.validateDuration(session.policy(), request.durationSeconds());
+            if (request.livenessScore() != null) service.validateLiveness(session.policy(), request.livenessScore());
+            if (request.modelId() != null || request.modelVersion() != null)
+                service.validateModel(session.policy(), request.modelId(), request.modelVersion());
+            return ResponseEntity.ok(new ValidationResponse(true, session.policy().policyId(), session.policy().version(), "POLICY_COMPLIANT"));
+        } catch (BiometricPolicyViolationException ex) {
+            return ResponseEntity.badRequest().body(new ValidationResponse(false, null, 0, ex.code() + ": " + ex.getMessage()));
+        }
+    }
+
     @GetMapping("/sessions/{sessionId}")
     public ResponseEntity<?> session(@PathVariable String sessionId) {
         try {
@@ -59,4 +76,7 @@ public class BiometricPolicyController {
                                  double recognitionThreshold, String fallbackMethod, long sessionTtlSeconds,
                                  String sessionId, Instant expiresAt, boolean serverIssued) {}
     public record ErrorResponse(String requestId, String code, String message, List<String> reasonCodes) {}
+    public record PolicyValidationRequest(String sessionId, String method, Integer frameCount, Long payloadBytes,
+                                          Double durationSeconds, Double livenessScore, String modelId, String modelVersion) {}
+    public record ValidationResponse(boolean valid, String policyId, long policyVersion, String message) {}
 }
