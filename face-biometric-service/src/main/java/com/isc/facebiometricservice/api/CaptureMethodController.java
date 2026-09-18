@@ -1,34 +1,35 @@
 package com.isc.facebiometricservice.api;
 
-import org.springframework.beans.factory.annotation.Value;
+import com.isc.facebiometricservice.policy.BiometricPolicyService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/v1/biometric")
 public class CaptureMethodController {
-    private final String selectedMethod;
+    private final BiometricPolicyService policyService;
 
-    public CaptureMethodController(@Value("${biometric.capture-method:LIVE_STREAM}") String selectedMethod) {
-        this.selectedMethod = selectedMethod.toUpperCase();
+    public CaptureMethodController(BiometricPolicyService policyService) {
+        this.policyService = policyService;
     }
 
     @GetMapping("/capture-method")
     public CaptureMethodResponse captureMethod() {
-        return new CaptureMethodResponse(selectedMethod,
-            selectedMethod.equals("FREE_METHOD")
-                        ? "Client may select Live Stream, Full Clip, or Client Embedding"
-                : selectedMethod.equals("LIVE_STREAM")
-                ? "Server selected incremental frame verification"
-                : selectedMethod.equals("CLIENT_EMBEDDING")
-                ? "Client selected local detection, liveness, and embedding"
-                : "Server selected complete clip verification",
-            selectedMethod.equals("FREE_METHOD")
-                        ? java.util.List.of("LIVE_STREAM", "FULL_CLIP", "CLIENT_EMBEDDING")
-                : java.util.List.of(selectedMethod));
+        var policy = policyService.currentPolicy();
+        return new CaptureMethodResponse(
+                policy.method().wireValue(),
+                "Server-issued biometric policy controls method selection; the client cannot override it.",
+                List.of(policy.method().wireValue()),
+                policy.policyId(),
+                policy.version(),
+                policy.profile(),
+                policy.fallbackMethod());
     }
 
-    public record CaptureMethodResponse(String selectedMethod, String message, java.util.List<String> availableMethods) {
+    public record CaptureMethodResponse(String selectedMethod, String message, List<String> availableMethods,
+                                        String policyId, long policyVersion, String profile, String fallbackMethod) {
     }
 }
