@@ -23,7 +23,24 @@ public class BiometricPolicyService {
         this.legacyCaptureMethod = legacyCaptureMethod;
     }
 
+    public boolean clientSelectable() { return "CLIENT_SELECTABLE".equals(properties.selectionMode()); }
+
     public BiometricPolicy currentPolicy() { return policyFor(properties.defaultProfile()); }
+
+    public BiometricPolicy policyForMethod(String requestedMethod) {
+        BiometricPolicyMethod method;
+        try { method = BiometricPolicyMethod.parse(requestedMethod); }
+        catch (IllegalArgumentException ex) { throw new BiometricPolicyViolationException("UNSUPPORTED_METHOD", "Unsupported policy method: " + requestedMethod); }
+        if (!clientSelectable()) {
+            BiometricPolicy assigned = currentPolicy();
+            validateMethod(assigned, method.wireValue());
+            return assigned;
+        }
+        var definition = properties.methodPolicies().get(method.wireValue());
+        if (definition == null) definition = properties.methodPolicies().get(method.name());
+        if (definition == null) throw new BiometricPolicyViolationException("METHOD_POLICY_NOT_CONFIGURED", "No policy is configured for " + method.wireValue());
+        return buildPolicy("DEV-" + method.wireValue(), definition, method);
+    }
 
     public BiometricPolicy policyFor(String requestedProfile) {
         String profile = requestedProfile == null || requestedProfile.isBlank()
@@ -37,6 +54,9 @@ public class BiometricPolicyService {
         BiometricPolicyMethod method;
         try { method = BiometricPolicyMethod.parse(methodValue); }
         catch (IllegalArgumentException ex) { throw new BiometricPolicyViolationException("UNSUPPORTED_METHOD", "Unsupported policy method: " + methodValue); }
+        return buildPolicy("biometric-" + profile.toLowerCase(), definition, method); }
+
+    private BiometricPolicy buildPolicy(String policyId, BiometricPolicyProperties.PolicyDefinition definition, BiometricPolicyMethod method) {
         long ttl = positive(definition.sessionTtlSeconds(), 120);
         long maxPayload = positive(definition.maxPayloadBytes(), DEFAULT_MAX_PAYLOAD);
         int frames = Math.max(0, definition.requiredFrameCount());
@@ -49,23 +69,25 @@ public class BiometricPolicyService {
         double threshold = definition.threshold() > 0 ? definition.threshold() : 0.65;
         String fallback = definition.fallbackMethod() == null || definition.fallbackMethod().isBlank() ? null : BiometricPolicyMethod.parse(definition.fallbackMethod()).wireValue();
         long version = positive(definition.version(), 1);
-        return new BiometricPolicy("biometric-" + profile.toLowerCase(), version, profile, method,
+        return new BiometricPolicy(policyId, version, policyId.startsWith("DEV-") ? "DEV" : policyId.substring("biometric-".length()).toUpperCase(), method,
                 new BiometricPolicy.CaptureRequirements(minDuration, maxDuration, frames, fps, maxPayload),
                 new BiometricPolicy.LivenessRequirements(livenessMode, !"NONE".equalsIgnoreCase(livenessMode), definition.livenessThreshold() > 0 ? definition.livenessThreshold() : 0.50),
                 Math.max(0, definition.minQualityScore()),
                 new BiometricPolicy.RecognitionRequirements(modelId, modelVersion, threshold), fallback, ttl, Instant.now());
     }
 
-    public PolicySession createSession(String referenceId, String profile) {
+    public PolicySession createSession(String referenceId, String profile, String requestedMethod) {
         if (!properties.enabled()) throw new BiometricPolicyViolationException("POLICY_ENGINE_DISABLED", "Biometric policy engine is disabled");
         if (referenceId == null || referenceId.isBlank()) throw new BiometricPolicyViolationException("REFERENCE_REQUIRED", "Reference ID is required");
-        BiometricPolicy policy = policyFor(profile);
+        BiometricPolicy policy = requestedMethod != null && !requestedMethod.isBlank() ? policyForMethod(requestedMethod) : policyFor(profile);
         Instant expiresAt = Instant.now().plusSeconds(policy.sessionTtlSeconds());
         String id = UUID.randomUUID().toString();
         PolicySession session = new PolicySession(id, referenceId, policy, expiresAt);
         sessions.put(id, session);
         return session;
     }
+
+    public PolicySession createSession(String referenceId, String profile) { return createSession(referenceId, profile, null); }
 
     public PolicySession requireSession(String sessionId) {
         if (sessionId == null || sessionId.isBlank()) throw new BiometricPolicyViolationException("POLICY_SESSION_REQUIRED", "Policy session ID is required");
