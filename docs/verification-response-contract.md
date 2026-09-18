@@ -11,6 +11,20 @@ All biometric **verification** modes expose the same response contract. Method 5
 
 Session creation, frame-upload feedback, model discovery, and enrollment remain workflow-specific APIs; they are not final verification outcomes.
 
+## Embedding model contract
+
+Embedding verification is model-aware. A request carrying a vector must explicitly identify:
+
+```text
+modelId
+modelVersion
+dimension
+```
+
+The server resolves the tuple through the biometric model registry. Equal vector dimensions are not sufficient to make two embeddings compatible. For example, the 512-D MobileFaceNet and 512-D ArcFace/R50 profiles are separate embedding spaces and require separate reference profiles.
+
+The server validates the selected model, vector dimension, finite values, normalization declaration, and L2 norm before comparing the probe with a reference. It never pads, truncates, converts, or otherwise maps one model's embedding into another model's space.
+
 ## Method 5 flow
 
 ```text
@@ -84,6 +98,8 @@ Clients should use `result` for the high-level verification outcome and `code` f
 | `INVALID_REQUEST` | Request/input is invalid and verification should not be attempted. | 400 |
 | `PROCESSING_ERROR` | Server-side processing/model failure. | 500 |
 
+For the model compatibility case, `MODEL_MISMATCH` is represented as `INVALID_REQUEST` with **HTTP 409 Conflict**. The response body remains the canonical verification envelope so clients can display the actual reason instead of an empty/null result.
+
 `NO_MATCH` must never be synthesized from a missing reference. If no compatible reference embedding exists, the service returns `INCONCLUSIVE` with `REFERENCE_NOT_FOUND` and `similarity: null`, because no cosine comparison occurred.
 
 ## Standard machine-readable codes
@@ -97,6 +113,7 @@ Clients should use `result` for the high-level verification outcome and `code` f
 
 - `REFERENCE_NOT_FOUND`
 - `MODEL_MISMATCH`
+- `MODEL_METADATA_REQUIRED`
 
 ### Capture / biometric evidence codes
 
