@@ -10,7 +10,7 @@ import java.util.Map;
 public class BiometricPolicySimulatorController {
     private final BiometricPolicyServerClient client;
     public BiometricPolicySimulatorController(BiometricPolicyServerClient client) { this.client = client; }
-    @GetMapping public Object current() { return client.current(); }
+    @GetMapping public Object current(@RequestParam(required=false) String method) { return client.current(method); }
     @PostMapping("/sessions") public Object createSession(@RequestParam String referenceId, @RequestParam(required=false) String profile) { return client.createSession(referenceId, profile); }
     @PostMapping("/validate") public Object validate(@RequestBody Map<String,Object> request) { return client.validate(request); }
 }
