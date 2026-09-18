@@ -9,6 +9,7 @@ public record BiometricPolicy(
         BiometricPolicyMethod method,
         CaptureRequirements capture,
         LivenessRequirements liveness,
+        double minQualityScore,
         RecognitionRequirements recognition,
         String fallbackMethod,
         long sessionTtlSeconds,
