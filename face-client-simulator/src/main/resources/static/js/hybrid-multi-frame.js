@@ -145,7 +145,7 @@ window.initHybridMultiFrame = function () {
     const createSession = async () => {
         const reference = $('hmf-reference').value.trim();
         const count = Number($('hmf-count').value);
-        const policyResponse = await fetch('/api/v1/simulator/policy/sessions?referenceId=' + encodeURIComponent(reference), {method: 'POST'});
+        const policyResponse = await fetch('/api/v1/simulator/policy/sessions?referenceId=' + encodeURIComponent(reference) + '&requestedMethod=HYBRID_MULTI_FRAME', {method: 'POST'});
         const policy = await policyResponse.json();
         if (!policyResponse.ok || !policy.sessionId) throw new Error(policy.message || 'Policy session creation failed');
         policySessionId = policy.sessionId;
