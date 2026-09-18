@@ -35,4 +35,22 @@ class BiometricPolicyServiceTest {
         var service = new BiometricPolicyService(new BiometricPolicyProperties(true, "NORMAL", "SERVER_ASSIGNED", Map.of(), Map.of()), "FREE_METHOD");
         assertThrows(BiometricPolicyViolationException.class, () -> service.policyFor("HIGH_RISK"));
     }
+    @Test
+    void devModeResolvesPolicyForRequestedMethod() {
+        var normal = new BiometricPolicyProperties.PolicyDefinition("HYBRID_MULTI_FRAME", 1, 6, 4, 4, 10_000, "PASSIVE", 0.50, 0.45, "arcface-512", "w600k-r50", 0.65, "HYBRID_SINGLE_FRAME", 120, 1);
+        var live = new BiometricPolicyProperties.PolicyDefinition("LIVE_STREAM", 2, 8, 5, 4, 8_000, "PASSIVE", 0.50, 0.45, "arcface-512", "w600k-r50", 0.65, "HYBRID_SINGLE_FRAME", 120, 1);
+        var service = new BiometricPolicyService(new BiometricPolicyProperties(true, "NORMAL", "CLIENT_SELECTABLE", Map.of("NORMAL", normal), Map.of("LIVE_STREAM", live)), "FREE_METHOD");
+        var policy = service.policyForMethod("LIVE_STREAM");
+        assertEquals(BiometricPolicyMethod.SERVER_LIVE_STREAM, policy.method());
+        assertEquals("DEV", policy.profile());
+        assertTrue(service.clientSelectable());
+    }
+
+    @Test
+    void serverAssignedModeRejectsDifferentRequestedMethod() {
+        var normal = new BiometricPolicyProperties.PolicyDefinition("HYBRID_MULTI_FRAME", 1, 6, 4, 4, 10_000, "PASSIVE", 0.50, 0.45, "arcface-512", "w600k-r50", 0.65, null, 120, 1);
+        var service = new BiometricPolicyService(new BiometricPolicyProperties(true, "NORMAL", "SERVER_ASSIGNED", Map.of("NORMAL", normal), Map.of("LIVE_STREAM", normal)), "FREE_METHOD");
+        assertThrows(BiometricPolicyViolationException.class, () -> service.policyForMethod("LIVE_STREAM"));
+    }
+
 }
