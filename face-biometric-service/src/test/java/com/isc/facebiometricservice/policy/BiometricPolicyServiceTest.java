@@ -25,6 +25,7 @@ class BiometricPolicyServiceTest {
         assertThrows(BiometricPolicyViolationException.class, () -> service.validateFrameCount(policy, 1));
         assertThrows(BiometricPolicyViolationException.class, () -> service.validatePayload(policy, 1001));
         assertThrows(BiometricPolicyViolationException.class, () -> service.validateDuration(policy, 1));
+        assertThrows(BiometricPolicyViolationException.class, () -> service.validateQuality(policy, 0.1));
         assertThrows(BiometricPolicyViolationException.class, () -> service.validateLiveness(policy, 0.1));
         assertThrows(BiometricPolicyViolationException.class, () -> service.validateModel(policy, "other", "version"));
     }
