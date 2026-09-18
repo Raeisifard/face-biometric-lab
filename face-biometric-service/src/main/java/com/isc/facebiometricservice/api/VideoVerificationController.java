@@ -21,7 +21,7 @@ import java.util.UUID;
 @RequestMapping("/api/v1/biometric/video-verification")
 public class VideoVerificationController {
     private static final Logger log = LoggerFactory.getLogger(VideoVerificationController.class);
-    private final VideoVerificationProperties properties; private final BiometricProperties biometricProperties; private final FaceMatcher matcher; private final VideoClipDecoder decoder; private final VideoVerificationEngine engine; private final String configuredCaptureMethod;
+    private final VideoVerificationProperties properties; private final BiometricProperties biometricProperties; private final FaceMatcher matcher; private final VideoClipDecoder decoder; private final VideoVerificationEngine engine; private final String configuredCaptureMethod; private final BiometricPolicyService policyService;
     public VideoVerificationController(VideoVerificationProperties properties,BiometricProperties biometricProperties,FaceMatcher matcher,VideoClipDecoder decoder,VideoVerificationEngine engine,BiometricPolicyService policyService,@Value("${biometric.capture-method:LIVE_STREAM}") String captureMethod){this.properties=properties;this.biometricProperties=biometricProperties;this.matcher=matcher;this.decoder=decoder;this.engine=engine;this.policyService=policyService;this.configuredCaptureMethod=captureMethod;}
     @PostMapping(value="/verify-clip",consumes=MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<VerificationResponse> verify(@RequestParam(required=false)String requestId,@RequestParam String referenceId,@RequestParam(required=false)String captureMethod,@RequestPart("clip")MultipartFile clip){
