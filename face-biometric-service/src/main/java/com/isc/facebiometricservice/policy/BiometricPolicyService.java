@@ -2,6 +2,7 @@ package com.isc.facebiometricservice.policy;
 
 import com.isc.facebiometricservice.config.BiometricPolicyProperties;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -16,14 +17,15 @@ public class BiometricPolicyService {
     private final BiometricPolicyProperties properties;
     private final Map<String, PolicySession> sessions = new ConcurrentHashMap<>();
     private final String legacyCaptureMethod;
+    private final Environment environment;
 
-    public BiometricPolicyService(BiometricPolicyProperties properties,
+    public BiometricPolicyService(BiometricPolicyProperties properties, Environment environment,
                                   @Value("${biometric.capture-method:FREE_METHOD}") String legacyCaptureMethod) {
         this.properties = properties;
         this.legacyCaptureMethod = legacyCaptureMethod;
     }
 
-    public boolean clientSelectable() { return "CLIENT_SELECTABLE".equals(properties.selectionMode()); }
+    public boolean clientSelectable() { return "CLIENT_SELECTABLE".equals(properties.selectionMode()) && !environment.matchesProfiles("prod"); }
 
     public BiometricPolicy currentPolicy() { return policyFor(properties.defaultProfile()); }
 
