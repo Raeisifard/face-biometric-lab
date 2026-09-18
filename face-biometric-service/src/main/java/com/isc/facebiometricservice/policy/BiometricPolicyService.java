@@ -101,6 +101,10 @@ public class BiometricPolicyService {
         if (seconds < policy.capture().minDurationSeconds() || seconds > policy.capture().maxDurationSeconds()) throw new BiometricPolicyViolationException("DURATION_VIOLATION", "Capture duration is outside the server-issued policy range");
     }
 
+    public void validateQuality(BiometricPolicy policy, Double score) {
+        if (score == null || score < policy.minQualityScore()) throw new BiometricPolicyViolationException("QUALITY_REQUIREMENT_VIOLATION", "Quality evidence does not meet the server-issued minimum");
+    }
+
     public void validateLiveness(BiometricPolicy policy, Double score) {
         if (policy.liveness().required() && (score == null || score < policy.liveness().threshold())) throw new BiometricPolicyViolationException("LIVENESS_REQUIREMENT_VIOLATION", "Liveness evidence does not meet the server-issued requirement");
     }
