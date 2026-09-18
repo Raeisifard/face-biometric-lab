@@ -23,6 +23,7 @@ public record BiometricPolicyProperties(
             double uploadFps,
             long maxPayloadBytes,
             String livenessMode,
+            double livenessThreshold,
             double minQualityScore,
             String recognitionModelId,
             String recognitionModelVersion,
