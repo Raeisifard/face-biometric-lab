@@ -28,6 +28,7 @@ public record BiometricPolicyProperties(
             String recognitionModelVersion,
             double threshold,
             String fallbackMethod,
-            long sessionTtlSeconds) {
+            long sessionTtlSeconds,
+            long version) {
     }
 }
