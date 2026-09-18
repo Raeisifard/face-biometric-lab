@@ -37,7 +37,7 @@ public class BiometricController {
 
     @PostMapping("/verify")
     public ResponseEntity<VerificationResponse> verify(@Valid @RequestBody VerificationRequest request) {
-        policyService.validateMethod(policyService.currentPolicy(), "CLIENT_EMBEDDING");
+        policyService.policyForMethod("CLIENT_EMBEDDING");
         return toHttp(verificationService.verify(request));
     }
 
