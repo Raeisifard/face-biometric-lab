@@ -7,7 +7,7 @@
 </head>
 <body>
 <main x-data="videoVerificationApp()" x-init="init()" class="shell">
-<header class="topbar"><div><p class="eyebrow">BIOMETRIC VERIFICATION LAB</p><p class="topbar-subtitle">Interactive simulator for capture, quality, liveness and server verification.</p><h1>Capture console</h1></div><div class="server-status"><span class="status-dot"></span><span>Server connected</span><strong class="method-badge">Loading method</strong></div></header>
+<header class="topbar"><div><p class="eyebrow">BIOMETRIC VERIFICATION LAB</p><div class="topbar-title-line"><h1>Capture console</h1><p class="topbar-subtitle">Interactive simulator for capture, quality, liveness and server verification.</p></div></div><div class="server-status"><span class="status-dot"></span><span>Server connected</span><strong class="method-badge">Loading method</strong></div></header>
 <div class="app-layout"><aside class="method-sidebar"><p class="eyebrow">AVAILABLE METHODS</p>
 <button class="method-nav live-nav" type="button"><span class="method-icon">◉</span><span><strong>Live stream</strong><small>Frame-by-frame</small></span><i class="method-check">●</i></button>
 <button class="method-nav clip-nav" type="button"><span class="method-icon">▣</span><span><strong>Full clip</strong><small>Upload 3–5 seconds</small></span><i class="method-check">●</i></button>
@@ -18,7 +18,33 @@
 <label>Camera<select x-model="deviceId"><template x-for="c in cameras"><option :value="c.deviceId" x-text="c.label||'Camera'"></option></template></select></label>
 <div class="camera-stage"><video id="preview" autoplay muted playsinline></video><canvas id="camera-overlay"></canvas><div class="camera-guide"></div></div>
 <div class="row"><button class="primary" @click="start" :disabled="recording">Start camera</button><button @click="stop" :disabled="!stream">Stop camera</button></div><p class="state" x-text="state"></p></section>
-<section class="method-content"><section class="card live-panel" hidden></section><section class="card client-panel" hidden></section>
+<section class="method-content"><section class="card policy-card" id="policy-card">
+<div class="section-heading"><div><p class="eyebrow">SERVER CONTROL</p><h2>Biometric policy</h2></div><span class="state-pill policy-state" id="policy-state">Loading</span></div>
+<div class="policy-banner"><strong id="policy-source">Server-issued policy</strong><span>The simulator displays these constraints and cannot override them.</span></div>
+<div class="policy-grid">
+<div><span>Profile</span><strong id="policy-profile">-</strong></div><div><span>Method</span><strong id="policy-method">-</strong></div>
+<div><span>Policy version</span><strong id="policy-version">-</strong></div><div><span>Session expiry</span><strong id="policy-expiry">-</strong></div>
+<div><span>Duration</span><strong id="policy-duration">-</strong></div><div><span>Required frames</span><strong id="policy-frames">-</strong></div>
+<div><span>Upload FPS</span><strong id="policy-fps">-</strong></div><div><span>Max payload</span><strong id="policy-payload">-</strong></div>
+<div><span>Liveness</span><strong id="policy-liveness">-</strong></div><div><span>Quality minimum</span><strong id="policy-quality">-</strong></div>
+<div><span>Recognition model</span><strong id="policy-model">-</strong></div><div><span>Threshold</span><strong id="policy-threshold">-</strong></div>
+<div><span>Fallback</span><strong id="policy-fallback">-</strong></div>
+</div>
+<div class="policy-actions"><button id="policy-session" class="primary">Create policy session</button><span id="policy-session-id">No policy session</span></div>
+<div class="policy-diagnostics">
+<div class="panel-title"><strong>Policy diagnostics</strong><small>Deliberately test server rejection without running biometric models</small></div>
+<div class="policy-test-grid">
+<button type="button" data-policy-test="method">Wrong method</button>
+<button type="button" data-policy-test="frames">Wrong frame count</button>
+<button type="button" data-policy-test="payload">Payload too large</button>
+<button type="button" data-policy-test="duration">Invalid duration</button>
+<button type="button" data-policy-test="liveness">Missing liveness</button>
+<button type="button" data-policy-test="model">Wrong model</button>
+</div>
+<pre id="policy-diagnostic-result" class="policy-diagnostic-result">Create a policy session to enable diagnostics.</pre>
+</div>
+</section>
+<section class="card live-panel" hidden></section><section class="card client-panel" hidden></section>
 <article class="card clip-panel" hidden><div class="section-heading"><div><p class="eyebrow">FULL CLIP</p><h2>Complete video clip</h2></div><span class="state-pill">3–5 sec</span></div><p class="method-description">Record the complete clip, inspect it, then send it through the server pipeline.</p><video id="clip" controls></video><div class="metrics"><div><span>Size</span><b x-text="formatBytes(clipSize)"></b></div><div><span>Duration</span><b x-text="clipDuration+' s'"></b></div></div><label>Capture duration <input type="range" min="3" max="5" step="0.5" x-model.number="duration"><b x-text="duration+' s'"></b></label><label>Reference ID<input x-model="referenceId" placeholder="user-123"></label><button class="primary wide" @click="capture" :disabled="recording||!stream">Capture clip</button><button class="primary wide" @click="verify" :disabled="busy||!clipBlob">Verify complete clip</button><div class="clip-result" x-show="result"><div class="section-heading"><p class="eyebrow">SERVER PIPELINE</p><span class="state-pill" x-text="result&&result.result"></span></div><div class="pipeline"><span :class="stepClass('upload')">Upload</span><span :class="stepClass('decode')">Decode</span><span :class="stepClass('detect')">Detect</span><span :class="stepClass('quality')">Quality</span><span :class="stepClass('live')">Liveness</span><span :class="stepClass('select')">Select</span><span :class="stepClass('recognition')">Recognition</span><span :class="stepClass('match')">Match</span></div><div class="clip-result-grid"><div><span>Code</span><strong x-text="result&&result.code||'-'"></strong></div><div><span>Similarity</span><strong x-text="result&&result.similarity!=null?result.similarity:'-'"></strong></div><div><span>Liveness</span><strong x-text="result&&result.quality&&result.quality.livenessScore!=null?result.quality.livenessScore:'-'"></strong></div><div><span>Decoded frames</span><strong x-text="result&&result.metrics&&result.metrics.decodedFrames||0"></strong></div><div><span>Recognition frames</span><strong x-text="result&&result.metrics&&result.metrics.recognitionFrames||0"></strong></div><div><span>Processing</span><strong x-text="result&&result.metrics&&result.metrics.processingTimeMs!=null?result.metrics.processingTimeMs+' ms':'-'"></strong></div><div><span>Round trip</span><strong x-text="result&&result.clientRoundTripMs!=null?result.clientRoundTripMs+' ms':'-'"></strong></div></div><div class="reason-box"><b>Message</b><span x-text="result&&result.message||'-'"></span></div><div class="reason-box"><b>Reason codes</b><span x-text="result&&result.reasonCodes?.length?result.reasonCodes.join(', '):'None'"></span></div></div><pre x-show="result" x-text="JSON.stringify(result,null,2)"></pre></article>
 <article class="card hybrid-panel" x-data="hybridBestFrameApp()" x-show="window.selectedCaptureMethod==='HYBRID_SINGLE_FRAME'">
 <div class="section-heading"><div><p class="eyebrow">METHOD 4 · HYBRID BEST FRAME</p><h2>Capture → Select → Verify</h2></div><span class="state-pill" x-text="status"></span></div>
