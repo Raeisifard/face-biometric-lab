@@ -1,6 +1,7 @@
 package com.isc.facebiometricservice.api;
 
 import com.isc.facebiometricservice.config.BiometricProperties;
+import com.isc.facebiometricservice.policy.BiometricPolicyService;
 import com.isc.facebiometricservice.domain.FaceEmbedding;
 import com.isc.facebiometricservice.service.BiometricVerificationService;
 import com.isc.facebiometricservice.service.FaceMatchingService;
@@ -24,16 +25,19 @@ public class BiometricController {
     private final FaceMatchingService service;
     private final BiometricVerificationService verificationService;
     private final BiometricProperties properties;
+    private final BiometricPolicyService policyService;
 
     public BiometricController(FaceMatchingService service, BiometricVerificationService verificationService,
-                               BiometricProperties properties) {
+                               BiometricProperties properties, BiometricPolicyService policyService) {
         this.service = service;
         this.verificationService = verificationService;
         this.properties = properties;
+        this.policyService = policyService;
     }
 
     @PostMapping("/verify")
     public ResponseEntity<VerificationResponse> verify(@Valid @RequestBody VerificationRequest request) {
+        policyService.validateMethod(policyService.currentPolicy(), "CLIENT_EMBEDDING");
         return toHttp(verificationService.verify(request));
     }
 
@@ -54,6 +58,7 @@ public class BiometricController {
 
     @PostMapping("/verify-embedding")
     public ResponseEntity<VerificationResponse> verifyLegacy(@Valid @RequestBody EmbeddingPayload p) {
+        policyService.validateMethod(policyService.currentPolicy(), "CLIENT_EMBEDDING");
         require(p);
         String requestId = UUID.randomUUID().toString();
         VerificationRequest request = new VerificationRequest(
