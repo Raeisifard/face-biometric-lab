@@ -71,7 +71,7 @@ pre { white-space: pre-wrap; word-break: break-word; color: #cbd5e1 }
 .sidebar-toggle { width: 38px; height: 34px; display: flex; align-items: center; justify-content: center; padding: 0; border: 1px solid #334155; border-radius: 9px; background: #0f172a; color: #e2e8f0; font-size: 20px; line-height: 1; margin: 0 auto 14px; }
 .sidebar-toggle:hover { background: #172033; }
 .app-layout.nav-collapsed { grid-template-columns: 64px minmax(0, 1fr) 360px; }
-.app-layout.nav-collapsed .method-sidebar { padding: 12px; margin-right: 12px; }
+.app-layout.nav-collapsed .method-sidebar { padding: 12px; margin-right: 0; }
 .app-layout.nav-collapsed .method-sidebar > .eyebrow,
 .app-layout.nav-collapsed .method-sidebar .method-nav > span:not(.method-icon),
 .app-layout.nav-collapsed .method-sidebar .method-check,
