@@ -68,7 +68,7 @@ pre { white-space: pre-wrap; word-break: break-word; color: #cbd5e1 }
 .server-status { display: flex; align-items: center; gap: 10px; }
 .server-status .method-badge { order: -1; }
 .method-badge { padding: 8px 12px; border: 1px solid #375991; border-radius: 999px; background: #111827; white-space: nowrap; }
-.sidebar-toggle { width: 38px; height: 34px; border: 1px solid #334155; border-radius: 9px; background: #0f172a; color: #e2e8f0; font-size: 20px; line-height: 1; margin: 0 0 14px; }
+.sidebar-toggle { width: 38px; height: 34px; display: flex; align-items: center; justify-content: center; padding: 0; border: 1px solid #334155; border-radius: 9px; background: #0f172a; color: #e2e8f0; font-size: 20px; line-height: 1; margin: 0 auto 14px; }
 .sidebar-toggle:hover { background: #172033; }
 .app-layout.nav-collapsed { grid-template-columns: 64px minmax(0, 1fr) 360px; }
 .app-layout.nav-collapsed .method-sidebar { padding: 12px; margin-right: 12px; }
