@@ -49,8 +49,18 @@ public class HybridMultiFrameVerificationController {
             if (!properties.enabled()) return invalid(null, referenceId, "HYBRID_MULTI_FRAME_DISABLED", "Hybrid multi-frame verification is disabled.");
             if (referenceId == null || referenceId.isBlank()) return invalid(null, referenceId, "REFERENCE_REQUIRED", "Reference ID is required.");
 
-            BiometricPolicy policy = policySessionId == null || policySessionId.isBlank()
-                    ? policyService.currentPolicy() : policyService.requireSession(policySessionId).policy();
+            BiometricPolicy policy;
+            if (policySessionId == null || policySessionId.isBlank()) {
+                // In dev CLIENT_SELECTABLE mode the default profile is not necessarily
+                // the method selected by the simulator. Resolve the method-specific
+                // policy instead of accidentally binding the request to NORMAL
+                // (which may be CLIENT_EMBEDDING).
+                policy = policyService.clientSelectable()
+                        ? policyService.policyForMethod("HYBRID_MULTI_FRAME")
+                        : policyService.currentPolicy();
+            } else {
+                policy = policyService.requireSession(policySessionId).policy();
+            }
             policyService.validateMethod(policy, "HYBRID_MULTI_FRAME");
             int count = policy.capture().requiredFrameCount() > 0 ? policy.capture().requiredFrameCount() : properties.defaultFrames();
             if (requestedFrames != null && requestedFrames != count) {
