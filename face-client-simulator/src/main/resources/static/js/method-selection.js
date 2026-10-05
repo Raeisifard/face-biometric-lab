@@ -99,11 +99,12 @@ function applyServerMethod(method){
     Object.keys(buttons).forEach(k=>{
         const b=buttons[k];if(!b)return;
         const allowed=window.biometricClientSelectable || k===method;
-        b.classList.toggle('selected',allowed);
+        const selected=k===method;
+        b.classList.toggle('selected',selected);
         b.classList.toggle('policy-blocked',!allowed);
         b.setAttribute('aria-disabled',String(!allowed));
         if(!allowed)b.title='Disabled by the server-issued biometric policy';
-        else b.title='Server-selected capture method';
+        else b.title=selected?'Selected capture method':'Available capture method';
     });
     const badge=document.querySelector('.method-badge');if(badge)badge.textContent=method+' · SERVER POLICY';
     const note=document.querySelector('.method-note');if(note)note.textContent=window.biometricClientSelectable?'DEV: select a method freely; the server returns the matching policy.':'PROD: the server-assigned policy controls method selection.';
