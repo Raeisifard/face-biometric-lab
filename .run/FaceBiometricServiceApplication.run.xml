@@ -1,0 +1,16 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="FaceBiometricServiceApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" nameIsGenerated="true">
+    <option name="ACTIVE_PROFILES" value="dev" />
+    <module name="face-biometric-service" />
+    <option name="SPRING_BOOT_MAIN_CLASS" value="com.isc.facebiometricservice.FaceBiometricServiceApplication" />
+    <extension name="coverage">
+      <pattern>
+        <option name="PATTERN" value="com.isc.facebiometricservice.*" />
+        <option name="ENABLED" value="true" />
+      </pattern>
+    </extension>
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>

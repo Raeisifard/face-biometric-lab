@@ -1,1 +1,19 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="#0f172a"/><circle cx="32" cy="29" r="17" fill="none" stroke="#60a5fa" stroke-width="4"/><circle cx="25" cy="27" r="3" fill="#60a5fa"/><circle cx="39" cy="27" r="3" fill="#60a5fa"/><path d="M23 38c5 5 15 5 18 0" fill="none" stroke="#60a5fa" stroke-width="4" stroke-linecap="round"/><path d="M32 8v7M32 43v13" stroke="#93c5fd" stroke-width="3" stroke-linecap="round"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Identity Reference Service">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0d5bd7"/>
+      <stop offset="1" stop-color="#07327f"/>
+    </linearGradient>
+    <linearGradient id="shield" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#27d7ed"/>
+      <stop offset="1" stop-color="#087cf0"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="url(#bg)"/>
+  <path d="M10 34a22 22 0 0 1 39-14" fill="none" stroke="#20d5ee" stroke-width="4" stroke-linecap="round"/>
+  <path d="M51 38a22 22 0 0 1-37 14" fill="none" stroke="#1589f3" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="29" cy="25" r="7" fill="#f4fbff"/>
+  <path d="M17 45c0-7 5-11 12-11s12 4 12 11" fill="#f4fbff"/>
+  <path d="M43 29l11 5v8c0 7-4.5 11-11 14-6.5-3-11-7-11-14v-8z" fill="url(#shield)"/>
+  <path d="m37.5 41 4 4 7-8" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

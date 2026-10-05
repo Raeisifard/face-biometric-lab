@@ -101,7 +101,7 @@ biometric:
         version: 1
     profiles:
       NORMAL:
-        method: ${BIOMETRIC_POLICY_METHOD:${BIOMETRIC_CAPTURE_METHOD:HYBRID_MULTI_FRAME}}
+        method: ${BIOMETRIC_POLICY_METHOD:${BIOMETRIC_CAPTURE_METHOD:CLIENT_EMBEDDING}}
         min-duration-seconds: 2.0
         max-duration-seconds: 6.0
         required-frame-count: 4
