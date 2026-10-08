@@ -35,7 +35,7 @@ android {
 
 dependencies {
     val cameraXVersion = "1.4.2"
-    val onnxRuntimeVersion = "1.25.0"
+    val onnxRuntimeVersion = "1.20.0"
     implementation("androidx.camera:camera-camera2:$cameraXVersion")
     implementation("androidx.camera:camera-lifecycle:$cameraXVersion")
     implementation("androidx.camera:camera-view:$cameraXVersion")
