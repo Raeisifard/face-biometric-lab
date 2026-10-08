@@ -26,11 +26,11 @@ void main() {
     expect(find.text('Help'), findsOneWidget);
   });
 
-  testWidgets('runs deterministic capture to processing to match flow', (tester) async {
+  testWidgets('runs camera flow to processing to match flow', (tester) async {
     await tester.pumpWidget(buildApp());
     await tester.tap(find.text('Start verification'));
     await tester.pump();
-    expect(find.text('Camera placeholder'), findsOneWidget);
+    expect(find.text('CameraX preview is available on Android.'), findsOneWidget);
 
     final continueButton = find.widgetWithText(FilledButton, 'Continue');
     final verificationList = find.byType(ListView).first;
