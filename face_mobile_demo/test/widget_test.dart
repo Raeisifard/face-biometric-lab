@@ -30,7 +30,10 @@ void main() {
     await tester.pumpWidget(buildApp());
     await tester.tap(find.text('Start verification'));
     await tester.pump();
-    expect(find.text('CameraX preview is available on Android.'), findsOneWidget);
+    // The native CameraX PlatformView is intentionally not asserted in the
+    // Flutter VM test. Its rendering and permission lifecycle are verified on
+    // an Android emulator or physical device during M03 acceptance.
+    expect(find.widgetWithText(FilledButton, 'Continue'), findsOneWidget);
 
     final continueButton = find.widgetWithText(FilledButton, 'Continue');
     final verificationList = find.byType(ListView).first;
