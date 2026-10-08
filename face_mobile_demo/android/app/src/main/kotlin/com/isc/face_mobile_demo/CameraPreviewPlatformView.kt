@@ -3,6 +3,8 @@ package com.isc.face_mobile_demo
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
+import android.os.Handler
+import android.os.Looper
 import android.util.Size
 import android.view.Surface
 import android.view.View
@@ -24,7 +26,7 @@ class CameraPreviewPlatformView(
     private val context: Context,
     private val lifecycleOwner: LifecycleOwner,
     private val requestCameraPermission: () -> Unit,
-    private val events: EventChannel.EventSink?
+    private val events: () -> EventChannel.EventSink?
 ) : PlatformView {
 
     private val previewView = PreviewView(context).apply {
@@ -32,6 +34,7 @@ class CameraPreviewPlatformView(
         scaleType = PreviewView.ScaleType.FILL_CENTER
     }
     private val cameraExecutor: ExecutorService = Executors.newSingleThreadExecutor()
+    private val mainHandler = Handler(Looper.getMainLooper())
     private val released = AtomicBoolean(false)
     private val frameCount = AtomicLong(0)
     private var cameraProvider: ProcessCameraProvider? = null
@@ -43,12 +46,18 @@ class CameraPreviewPlatformView(
 
     override fun getView(): View = previewView
 
+    private fun emit(block: (EventChannel.EventSink) -> Unit) {
+        mainHandler.post {
+            if (!released.get()) events()?.let(block)
+        }
+    }
+
     private fun startWhenReady() {
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA)
             != PackageManager.PERMISSION_GRANTED
         ) {
             requestCameraPermission()
-            events?.success(mapOf("type" to "permission_required"))
+            emit { it.success(mapOf("type" to "permission_required")) }
             return
         }
 
@@ -59,7 +68,7 @@ class CameraPreviewPlatformView(
                 cameraProvider = future.get()
                 bindUseCases()
             } catch (error: Exception) {
-                events?.error("CAMERA_INIT_FAILED", error.message, null)
+                emit { it.error("CAMERA_INIT_FAILED", error.message, null) }
             }
         }, ContextCompat.getMainExecutor(context))
     }
@@ -88,16 +97,18 @@ class CameraPreviewPlatformView(
                 if (!released.get()) {
                     val count = frameCount.incrementAndGet()
                     if (count % 5L == 0L) {
-                        events?.success(
-                            mapOf(
-                                "type" to "frame",
-                                "sequence" to count,
-                                "timestamp" to image.imageInfo.timestamp,
-                                "width" to image.width,
-                                "height" to image.height,
-                                "rotationDegrees" to image.imageInfo.rotationDegrees
+                        emit {
+                            it.success(
+                                mapOf(
+                                    "type" to "frame",
+                                    "sequence" to count,
+                                    "timestamp" to image.imageInfo.timestamp,
+                                    "width" to image.width,
+                                    "height" to image.height,
+                                    "rotationDegrees" to image.imageInfo.rotationDegrees
+                                )
                             )
-                        )
+                        }
                     }
                 }
             } finally {
@@ -114,9 +125,9 @@ class CameraPreviewPlatformView(
                 preview,
                 imageAnalysis
             )
-            events?.success(mapOf("type" to "ready"))
+            emit { it.success(mapOf("type" to "ready")) }
         } catch (error: Exception) {
-            events?.error("CAMERA_BIND_FAILED", error.message, null)
+            emit { it.error("CAMERA_BIND_FAILED", error.message, null) }
         }
     }
 
@@ -138,5 +149,6 @@ class CameraPreviewPlatformView(
         analysis?.clearAnalyzer()
         cameraProvider?.unbindAll()
         cameraExecutor.shutdown()
+        mainHandler.removeCallbacksAndMessages(null)
     }
 }
