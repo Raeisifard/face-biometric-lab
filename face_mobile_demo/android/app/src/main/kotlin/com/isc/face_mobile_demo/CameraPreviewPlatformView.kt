@@ -40,7 +40,9 @@ class CameraPreviewPlatformView(
         clipToOutline = true
     }
     private val cameraExecutor: ExecutorService = Executors.newSingleThreadExecutor()
-    private val yuNetDetector = YuNetDetector(context)
+    private val detectorExecutor: ExecutorService = Executors.newSingleThreadExecutor()
+    @Volatile
+    private var yuNetDetector: YuNetDetector? = null
     private var lastDetectionNanos = 0L
     private val mainHandler = Handler(Looper.getMainLooper())
     private val released = AtomicBoolean(false)
@@ -69,6 +71,7 @@ class CameraPreviewPlatformView(
             return
         }
 
+        initializeDetectorAsync()
         val future = ProcessCameraProvider.getInstance(context)
         future.addListener({
             if (released.get()) return@addListener
@@ -79,6 +82,28 @@ class CameraPreviewPlatformView(
                 emit { it.error("CAMERA_INIT_FAILED", error.message, null) }
             }
         }, ContextCompat.getMainExecutor(context))
+    }
+
+    private fun initializeDetectorAsync() {
+        detectorExecutor.execute {
+            try {
+                val detector = YuNetDetector(context)
+                if (released.get()) {
+                    detector.close()
+                    return@execute
+                }
+                yuNetDetector = detector
+                emit { it.success(mapOf("type" to "detector_ready", "modelId" to YuNetDetector.MODEL_ID)) }
+            } catch (error: Exception) {
+                emit {
+                    it.error(
+                        "FACE_DETECTOR_UNAVAILABLE",
+                        error.message ?: "YuNet detector initialization failed",
+                        null
+                    )
+                }
+            }
+        }
     }
 
     private fun bindUseCases() {
@@ -121,8 +146,11 @@ class CameraPreviewPlatformView(
                     val now = System.nanoTime()
                     if (now - lastDetectionNanos >= 200_000_000L) {
                         lastDetectionNanos = now
-                        val detection = yuNetDetector.detect(image)
-                        emit { it.success(detectionEvent(detection, count)) }
+                        val detector = yuNetDetector
+                        if (detector != null) {
+                            val detection = detector.detect(image)
+                            emit { it.success(detectionEvent(detection, count)) }
+                        }
                     }
                 }
             } catch (error: Exception) {
@@ -187,8 +215,10 @@ class CameraPreviewPlatformView(
         if (!released.compareAndSet(false, true)) return
         analysis?.clearAnalyzer()
         cameraProvider?.unbindAll()
-        yuNetDetector.close()
+        yuNetDetector?.close()
+        yuNetDetector = null
         cameraExecutor.shutdown()
+        detectorExecutor.shutdownNow()
         mainHandler.removeCallbacksAndMessages(null)
     }
 }
