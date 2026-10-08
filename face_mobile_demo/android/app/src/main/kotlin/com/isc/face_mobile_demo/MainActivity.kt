@@ -9,7 +9,7 @@ import io.flutter.plugin.common.MethodChannel
 class MainActivity : FlutterActivity() {
     companion object {
         private const val CHANNEL = "com.isc.face_mobile_demo/platform"
-        private const val BRIDGE_VERSION = "1.1"
+        private const val BRIDGE_VERSION = "1.2"
     }
 
     private var cameraFactory: CameraPreviewFactory? = null
@@ -32,7 +32,7 @@ class MainActivity : FlutterActivity() {
                             "bridgeVersion" to BRIDGE_VERSION,
                             "status" to "OK",
                             "platform" to "Android",
-                            "engineState" to "CAMERA_X"
+                            "engineState" to "CAMERA_X_YUNET"
                         )
                     )
                     else -> result.notImplemented()
