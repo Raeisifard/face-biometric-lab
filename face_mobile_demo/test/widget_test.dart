@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:face_mobile_demo/app.dart';
 import 'package:face_mobile_demo/core/config/app_config.dart';
@@ -30,8 +31,19 @@ void main() {
     await tester.tap(find.text('Start verification'));
     await tester.pump();
     expect(find.text('Camera placeholder'), findsOneWidget);
-    await tester.tap(find.text('Continue'));
+
+    final continueButton = find.widgetWithText(FilledButton, 'Continue');
+    final verificationList = find.byType(ListView).first;
+
+    // The test viewport is small enough for the NavigationBar to overlap the
+    // lower part of the camera flow. Scroll explicitly rather than relying on
+    // scrollUntilVisible(), which considers the button geometrically visible
+    // even when the bottom navigation overlays its hit-test area.
+    await tester.drag(verificationList, const Offset(0, -220));
+    await tester.pumpAndSettle();
+    await tester.tap(continueButton);
     await tester.pump();
+
     expect(find.text('Processing verification…'), findsOneWidget);
     await tester.tap(find.text('Demo Match'));
     await tester.pump();
