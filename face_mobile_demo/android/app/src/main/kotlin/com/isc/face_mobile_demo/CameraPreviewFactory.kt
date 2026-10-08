@@ -14,6 +14,7 @@ class CameraPreviewFactory(
 ) : PlatformViewFactory(StandardMessageCodec.INSTANCE) {
 
     private var eventSink: EventChannel.EventSink? = null
+    private var latestView: CameraPreviewPlatformView? = null
 
     init {
         EventChannel(messenger, EVENT_CHANNEL).setStreamHandler(object : EventChannel.StreamHandler {
@@ -35,7 +36,15 @@ class CameraPreviewFactory(
                 activity.requestPermissions(arrayOf(android.Manifest.permission.CAMERA), CAMERA_PERMISSION_REQUEST)
             },
             events = eventSink
-        )
+        ).also { latestView = it }
+    }
+
+    fun restartCamera() {
+        latestView?.restart()
+    }
+
+    fun updateRotation() {
+        latestView?.updateRotation()
     }
 
     companion object {
