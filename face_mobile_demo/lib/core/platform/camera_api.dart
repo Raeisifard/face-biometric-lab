@@ -18,7 +18,11 @@ class CameraFrameEvent {
   final int rotationDegrees;
 
   factory CameraFrameEvent.fromMap(Map<Object?, Object?> map) {
-    int value(String key) => (map[key] as num?)?.toInt() ?? 0;
+    int value(String key) {
+      final raw = map[key];
+      return raw is num ? raw.toInt() : 0;
+    }
+
     return CameraFrameEvent(
       sequence: value('sequence'),
       timestamp: value('timestamp'),
@@ -41,5 +45,9 @@ class CameraApi {
   Stream<CameraFrameEvent> get frames => _events
       .receiveBroadcastStream()
       .where((event) => event is Map && event['type'] == 'frame')
-      .map((event) => CameraFrameEvent.fromMap(Map<Object?, Object?>.from(event as Map)));
+      .map(
+        (event) => CameraFrameEvent.fromMap(
+          Map<Object?, Object?>.from(event as Map),
+        ),
+      );
 }
