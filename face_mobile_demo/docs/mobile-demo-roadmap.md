@@ -3,6 +3,11 @@
 ## Goal
 Build a product-like Android demo client for face-biometric-lab. It captures camera input, performs required client-side biometric stages, calls face-biometric-service, and presents Match/No Match for customer demonstrations.
 
+## Canonical mobile documentation
+All mobile phase prompts are under `face_mobile_demo/prompts/`. All mobile phase reports and the mobile roadmap are under `face_mobile_demo/docs/`.
+
+The root `prompts/` directory contains legacy/general project prompts and is not the source of truth for mobile phases.
+
 ## Technology decision
 - Flutter for UI, navigation and demo presentation.
 - Kotlin native Android for CameraX, real-time frames and ONNX Runtime Mobile.
@@ -50,7 +55,7 @@ Current client embedding contract: `w600k_mbf`, 512-D, 112x112, RGB, `(pixel - 1
 Client Embedding is untrusted evidence. Keep extension points for authenticated sessions, nonce binding, replay prevention, device/app identity, attestation, secure transport, model/version policy and server-side enforcement.
 
 ## Repository target
-Create `face-mobile-demo/` at repository root. Existing backend and simulator remain independently runnable.
+The mobile application lives at `face_mobile_demo/` at repository root. Existing backend and simulator remain independently runnable.
 
 ## Phase gate
 Every phase must be implemented, tested, documented and committed before the next phase begins.
