@@ -33,6 +33,44 @@ class CameraFrameEvent {
   }
 }
 
+class FaceDetectionEvent {
+  const FaceDetectionEvent({
+    required this.status,
+    required this.modelId,
+    required this.imageWidth,
+    required this.imageHeight,
+    required this.processingMs,
+    required this.faces,
+  });
+
+  final String status;
+  final String modelId;
+  final int imageWidth;
+  final int imageHeight;
+  final int processingMs;
+  final List<Map<String, dynamic>> faces;
+
+  int get faceCount => faces.length;
+
+  factory FaceDetectionEvent.fromMap(Map<Object?, Object?> map) {
+    final rawFaces = map['faces'];
+    final faces = rawFaces is List
+        ? rawFaces.whereType<Map>().map(
+            (face) => Map<String, dynamic>.from(face),
+          ).toList()
+        : const <Map<String, dynamic>>[];
+    int number(String key) => map[key] is num ? (map[key] as num).toInt() : 0;
+    return FaceDetectionEvent(
+      status: map['status']?.toString() ?? 'NO_FACE',
+      modelId: map['modelId']?.toString() ?? 'unknown',
+      imageWidth: number('imageWidth'),
+      imageHeight: number('imageHeight'),
+      processingMs: number('processingMs'),
+      faces: faces,
+    );
+  }
+}
+
 class CameraApi {
   CameraApi({EventChannel? eventChannel})
       : _events = eventChannel ?? const EventChannel(_eventChannelName);
@@ -42,11 +80,20 @@ class CameraApi {
 
   final EventChannel _events;
 
-  Stream<CameraFrameEvent> get frames => _events
-      .receiveBroadcastStream()
+  Stream<dynamic> get _rawEvents => _events.receiveBroadcastStream();
+
+  Stream<CameraFrameEvent> get frames => _rawEvents
       .where((event) => event is Map && event['type'] == 'frame')
       .map(
         (event) => CameraFrameEvent.fromMap(
+          Map<Object?, Object?>.from(event as Map),
+        ),
+      );
+
+  Stream<FaceDetectionEvent> get detections => _rawEvents
+      .where((event) => event is Map && event['type'] == 'detection')
+      .map(
+        (event) => FaceDetectionEvent.fromMap(
           Map<Object?, Object?>.from(event as Map),
         ),
       );
