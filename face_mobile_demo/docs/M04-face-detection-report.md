@@ -2,7 +2,7 @@
 
 ## Status
 
-Implementation in progress on `feat/mobile-m04-face-detection`.
+Implementation in progress on `feat/mobile-m04-face-detection`. CameraX preview is intentionally independent from YuNet initialization so detector/model failures cannot remove the live preview.
 
 ## Scope
 
@@ -10,7 +10,7 @@ M04 integrates the canonical YuNet `face_detection_yunet_2023mar.onnx` model thr
 
 Delivered in this phase:
 
-- ONNX Runtime Android dependency pinned to 1.25.0.
+- ONNX Runtime Android dependency pinned to 1.20.0.
 - YuNet model loading from Android assets.
 - Build-time copy of the repository-level YuNet model when present locally.
 - YUV_420_888 camera frame conversion to BGR NCHW input.
@@ -24,6 +24,8 @@ Delivered in this phase:
   - SINGLE_FACE
   - MULTIPLE_FACES
 - compact typed detection events over the existing camera EventChannel.
+- asynchronous/lazy YuNet initialization so CameraX preview remains available when the model or detector is unavailable.
+- detector initialization errors are reported as `FACE_DETECTOR_UNAVAILABLE` events instead of failing `PlatformView` creation.
 - Flutter detection status presentation for device verification.
 - Dart coverage for detection event parsing and malformed metadata.
 
