@@ -84,22 +84,25 @@ class CameraPreviewPlatformView(
             .build()
 
         imageAnalysis.setAnalyzer(cameraExecutor) { image ->
-            if (!released.get()) {
-                val count = frameCount.incrementAndGet()
-                if (count % 5L == 0L) {
-                    events?.success(
-                        mapOf(
-                            "type" to "frame",
-                            "sequence" to count,
-                            "timestamp" to image.imageInfo.timestamp,
-                            "width" to image.width,
-                            "height" to image.height,
-                            "rotationDegrees" to image.imageInfo.rotationDegrees
+            try {
+                if (!released.get()) {
+                    val count = frameCount.incrementAndGet()
+                    if (count % 5L == 0L) {
+                        events?.success(
+                            mapOf(
+                                "type" to "frame",
+                                "sequence" to count,
+                                "timestamp" to image.imageInfo.timestamp,
+                                "width" to image.width,
+                                "height" to image.height,
+                                "rotationDegrees" to image.imageInfo.rotationDegrees
+                            )
                         )
-                    )
+                    }
                 }
+            } finally {
+                image.close()
             }
-            image.close()
         }
 
         analysis = imageAnalysis
@@ -121,11 +124,19 @@ class CameraPreviewPlatformView(
         if (!released.get()) startWhenReady()
     }
 
+    fun updateRotation() {
+        if (!released.get() &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) ==
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            bindUseCases()
+        }
+    }
+
     override fun dispose() {
         if (!released.compareAndSet(false, true)) return
         analysis?.clearAnalyzer()
         cameraProvider?.unbindAll()
         cameraExecutor.shutdown()
-        previewView.controller = null
     }
 }
