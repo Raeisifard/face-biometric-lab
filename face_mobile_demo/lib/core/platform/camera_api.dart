@@ -80,7 +80,7 @@ class CameraApi {
 
   final EventChannel _events;
 
-  Stream<dynamic> get _rawEvents => _events.receiveBroadcastStream();
+  late final Stream<dynamic> _rawEvents = _events.receiveBroadcastStream();
 
   Stream<CameraFrameEvent> get frames => _rawEvents
       .where((event) => event is Map && event['type'] == 'frame')
