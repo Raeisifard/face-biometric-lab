@@ -95,8 +95,8 @@ class VerifyPage extends StatelessWidget {
           const Icon(Icons.verified_user_outlined, size: 44),
           const SizedBox(height: 12),
           Text('Ready to verify', style: Theme.of(context).textTheme.titleLarge),
-          Text('Method: ' + method.label),
-          Text('Reference: ' + reference),
+          Text('Method: ${method.label}'),
+          Text('Reference: ${reference}'),
           TextButton.icon(onPressed: onHelp, icon: const Icon(Icons.info_outline), label: const Text('How verification works')),
         ]);
       case VerificationState.camera:
@@ -138,7 +138,7 @@ class VerifyPage extends StatelessWidget {
       const SizedBox(height: 6),
       const Text('Confirm a face against the selected reference.'),
       const SizedBox(height: 16),
-      Text('Flow: ' + state.name, style: Theme.of(context).textTheme.labelLarge),
+      Text('Flow: ${state.name}, style: Theme.of(context).textTheme.labelLarge),
       const SizedBox(height: 12),
       Card(child: Padding(padding: const EdgeInsets.all(20), child: card)),
       if (state == VerificationState.ready) ...[
@@ -159,11 +159,24 @@ class MethodsPage extends StatelessWidget {
     Text('Verification method', style: Theme.of(context).textTheme.headlineSmall),
     const SizedBox(height: 8),
     const Text('Choose a method for the next verification. Execution is introduced in later phases.'),
-    for (final m in VerificationMethod.values)
-      Card(child: RadioListTile<VerificationMethod>(
-        value: m, groupValue: selected, onChanged: (v) { if (v != null) onSelected(v); },
-        title: Text(m.label), subtitle: Text(m.description),
-      )),
+    RadioGroup<VerificationMethod>(
+      groupValue: selected,
+      onChanged: (v) {
+        if (v != null) onSelected(v);
+      },
+      child: Column(
+        children: [
+          for (final m in VerificationMethod.values)
+            Card(
+              child: RadioListTile<VerificationMethod>(
+                value: m,
+                title: Text(m.label),
+                subtitle: Text(m.description),
+              ),
+            ),
+        ],
+      ),
+    ),
   ]);
 }
 
@@ -178,11 +191,28 @@ class ReferencePage extends StatelessWidget {
     Text('Reference', style: Theme.of(context).textTheme.headlineSmall),
     const SizedBox(height: 8),
     const Text('Select which registered identity the verification flow should target.'),
-    for (final r in values)
-      Card(child: RadioListTile<String>(
-        value: r, groupValue: selected, onChanged: (v) { if (v != null) onSelected(v); },
-        title: Text(r), subtitle: Text(r == 'Demo reference' ? 'Safe local demo selection' : 'Placeholder reference'),
-      )),
+    RadioGroup<String>(
+      groupValue: selected,
+      onChanged: (v) {
+        if (v != null) onSelected(v);
+      },
+      child: Column(
+        children: [
+          for (final r in values)
+            Card(
+              child: RadioListTile<String>(
+                value: r,
+                title: Text(r),
+                subtitle: Text(
+                  r == 'Demo reference'
+                      ? 'Safe local demo selection'
+                      : 'Placeholder reference',
+                ),
+              ),
+            ),
+        ],
+      ),
+    ),
   ]);
 }
 
