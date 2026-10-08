@@ -30,7 +30,9 @@ void main() {
     await tester.tap(find.text('Start verification'));
     await tester.pump();
     expect(find.text('Camera placeholder'), findsOneWidget);
-    await tester.tap(find.text('Continue'));
+    final continueButton = find.widgetWithText(FilledButton, 'Continue');
+    await tester.ensureVisible(continueButton);
+    await tester.tap(continueButton);
     await tester.pump();
     expect(find.text('Processing verification…'), findsOneWidget);
     await tester.tap(find.text('Demo Match'));
