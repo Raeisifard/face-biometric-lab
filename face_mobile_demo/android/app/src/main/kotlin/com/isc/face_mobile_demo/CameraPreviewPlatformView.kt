@@ -30,8 +30,14 @@ class CameraPreviewPlatformView(
 ) : PlatformView {
 
     private val previewView = PreviewView(context).apply {
-        implementationMode = PreviewView.ImplementationMode.PERFORMANCE
+        // Flutter embeds this PreviewView inside a bounded AndroidView. Use the
+        // TextureView-backed implementation so the camera surface obeys the
+        // Flutter widget bounds and clips correctly in hybrid/platform-view
+        // composition. SurfaceView-backed PERFORMANCE mode can escape those
+        // bounds on some Android devices/emulators.
+        implementationMode = PreviewView.ImplementationMode.COMPATIBLE
         scaleType = PreviewView.ScaleType.FILL_CENTER
+        clipToOutline = true
     }
     private val cameraExecutor: ExecutorService = Executors.newSingleThreadExecutor()
     private val mainHandler = Handler(Looper.getMainLooper())
