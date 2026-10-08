@@ -43,7 +43,7 @@ dependencies {
 }
 
 val syncYuNetModel by tasks.registering(Copy::class) {
-    val source = rootProject.projectDir.resolve("../../../models/detector/face_detection_yunet_2023mar.onnx")
+    val source = rootProject.projectDir.resolve("../models/detector/face_detection_yunet_2023mar.onnx")
     from(source)
     into(layout.projectDirectory.dir("src/main/assets/models"))
     onlyIf { source.exists() }
