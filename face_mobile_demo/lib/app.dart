@@ -11,9 +11,9 @@ extension VerificationMethodX on VerificationMethod {
   String get label => switch (this) {
     VerificationMethod.fullClip => 'Full Clip',
     VerificationMethod.serverLiveStream => 'Server Live Stream',
-    VerificationMethod.clientEmbedding => 'Generate an embedding on-device, then verify it.',
-    VerificationMethod.hybridBestFrame => 'Select the best frame before verification.',
-    VerificationMethod.hybridMultiFrame => 'Use multiple strong frames for verification.',
+    VerificationMethod.clientEmbedding => 'Client Embedding',
+    VerificationMethod.hybridBestFrame => 'Hybrid Best Frame',
+    VerificationMethod.hybridMultiFrame => 'Hybrid Multi Frame',
   };
   String get description => switch (this) {
     VerificationMethod.fullClip => 'Capture a short clip and verify server-side.',
