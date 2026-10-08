@@ -2,62 +2,74 @@
 
 ## Status
 
-**NOT COMPLETE — M02 must not start yet.**
+**IMPLEMENTED — pending manual Android emulator verification.**
 
-The latest mobile commit `c5213c092f4e6ee2bc2fd5dff46bb9c24d68fa01` successfully launches the generated Flutter application on an Android Studio emulator, but it does not satisfy the M01 acceptance criteria.
+M01 has now been implemented against the canonical prompt at `face_mobile_demo/prompts/01-MOBILE-FOUNDATION.md`.
 
-## Baseline reviewed
+## Baseline
 
-- Commit: `c5213c092f4e6ee2bc2fd5dff46bb9c24d68fa01`
-- Commit message: `First face_mobile_demo App run`
+- Previous baseline: `2d09781c767ae841213a6ace5a15885087c117ea`
 - Mobile project: `face_mobile_demo/`
 - Mobile prompts: `face_mobile_demo/prompts/`
 
-## M01 requirements checked
+## Implemented
 
-| Requirement | Status | Finding |
-|---|---|---|
-| Flutter project exists and launches on Android | PASS | The Flutter project is present and the first Android emulator run was successful. |
-| Android/Kotlin native bridge | FAIL | `MainActivity.kt` is only the default `FlutterActivity`; no platform bridge is implemented. |
-| Typed platform API | FAIL | No typed Flutter ↔ Kotlin health/status API exists. |
-| Placeholder biometric engine | FAIL | No Kotlin biometric-engine abstraction/placeholder is present. |
-| Clean package structure | FAIL | `lib/main.dart` is still the default Flutter counter application. |
-| App identity/build configuration | PARTIAL | Android application ID exists, but the project remains essentially default generated configuration. |
-| Environment configuration | FAIL | No mobile environment/configuration layer has been implemented. |
-| Lint/format baseline | PASS | Flutter lint configuration exists. |
-| Automated tests | FAIL | Only the generated default widget test is present; M01 bridge/contract tests are absent. |
-| Clean-machine setup documentation | FAIL | README remains the generated Flutter README and does not document the mobile project setup/architecture. |
+### Flutter foundation
+- Replaced the generated counter application with a minimal production-oriented application shell.
+- Added clear `lib/app.dart`, `lib/core/config`, `lib/core/platform`, and `lib/core/biometric` boundaries.
+- Added compile-time environment configuration through `--dart-define`.
 
-## Evidence
+### Flutter ↔ Kotlin bridge
+- Added MethodChannel `com.isc.face_mobile_demo/platform`.
+- Added typed Dart `PlatformApi` and `PlatformHealth` models.
+- Added native `getHealth` implementation.
+- Native response includes API name, bridge version, status, platform and engine state.
 
-The current `face_mobile_demo/lib/main.dart` is the standard Flutter counter template.
+### Biometric engine boundary
+- Added `BiometricEngine` interface and `PlaceholderBiometricEngine`.
+- No camera or ML implementation is introduced in M01.
 
-The current Android entry point is:
+### Tests
+- Replaced the generated counter test with an M01 widget test.
+- The test verifies the typed platform health presentation through an injected platform API.
 
-`com.isc.face_mobile_demo.MainActivity : FlutterActivity`
+### Documentation
+- Replaced the generated README with M01 setup, run, configuration and platform-contract documentation.
+- Mobile roadmap and phase reports are kept under `face_mobile_demo/docs/`.
 
-with no MethodChannel/platform API or native biometric engine abstraction.
+## Acceptance criteria
 
-The current `pubspec.yaml` contains only the default Flutter/Cupertino dependencies and `flutter_lints`.
+| Criterion | Status |
+|---|---|
+| Debug Android application builds/launches | READY — previously verified on Android emulator |
+| Flutter calls Kotlin | IMPLEMENTED |
+| Typed health/status response | IMPLEMENTED |
+| Clean-machine setup documented | IMPLEMENTED |
+| Automated test baseline | IMPLEMENTED |
+| No camera/ML in M01 | SATISFIED |
 
-## Decision
+## Manual verification required
 
-M01 is **not accepted**.
+From `face_mobile_demo/`:
 
-The successful emulator launch is a valid M01 prerequisite/baseline, but it is not sufficient to close M01.
+```powershell
+flutter pub get
+flutter analyze
+flutter test
+flutter devices
+flutter run -d <android-device-id>
+```
 
-Therefore:
+The running Android app must show:
 
-**M01 remains the active implementation phase. M02 must wait until M01 is fully implemented, tested, documented, committed, and manually verified on the Android emulator.**
+- `Platform bridge ready`
+- API: `platform.health`
+- Bridge: `1.0`
+- Platform: `Android`
+- Engine: `PLACEHOLDER`
 
-## Documentation location
+M01 is accepted only after these checks pass on the Android emulator/device.
 
-All mobile phase reports belong under:
+## Next phase
 
-`face_mobile_demo/docs/`
-
-The mobile master roadmap is also located under:
-
-`face_mobile_demo/docs/mobile-demo-roadmap.md`.
-
-The repository-root `docs/mobile-demo-roadmap.md` is no longer the mobile roadmap location.
+M02 — UI/UX remains blocked until the manual M01 gate above is confirmed.

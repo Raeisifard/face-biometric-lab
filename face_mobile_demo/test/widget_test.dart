@@ -1,30 +1,38 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:face_mobile_demo/main.dart';
+import 'package:face_mobile_demo/app.dart';
+import 'package:face_mobile_demo/core/config/app_config.dart';
+import 'package:face_mobile_demo/core/platform/platform_api.dart';
+import 'package:face_mobile_demo/core/platform/platform_health.dart';
+
+class FakePlatformApi implements PlatformApi {
+  @override
+  Future<PlatformHealth> getHealth() async => const PlatformHealth(
+        apiName: 'platform.health',
+        bridgeVersion: '1.0',
+        status: 'OK',
+        platform: 'Android',
+        engineState: 'PLACEHOLDER',
+      );
+}
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  testWidgets('shows native platform health', (tester) async {
+    await tester.pumpWidget(
+      const FaceMobileDemoApp(
+        platformApi: FakePlatformApi(),
+        config: AppConfig(
+          environment: 'test',
+          serviceBaseUrl: 'http://test',
+          demoMode: true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
-
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
-
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    expect(find.text('Platform bridge ready'), findsOneWidget);
+    expect(find.text('platform.health'), findsOneWidget);
+    expect(find.text('PLACEHOLDER'), findsOneWidget);
+    expect(find.text('test'), findsOneWidget);
   });
 }
