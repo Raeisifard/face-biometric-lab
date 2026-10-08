@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'core/config/app_config.dart';
 import 'core/platform/platform_api.dart';
+import 'ui/camera_preview.dart';
 
 enum VerificationState { ready, camera, processing, match, noMatch }
 enum VerificationMethod { fullClip, serverLiveStream, clientEmbedding, hybridBestFrame, hybridMultiFrame }
@@ -10,9 +11,9 @@ extension VerificationMethodX on VerificationMethod {
   String get label => switch (this) {
     VerificationMethod.fullClip => 'Full Clip',
     VerificationMethod.serverLiveStream => 'Server Live Stream',
-    VerificationMethod.clientEmbedding => 'Client Embedding',
-    VerificationMethod.hybridBestFrame => 'Hybrid Best Frame',
-    VerificationMethod.hybridMultiFrame => 'Hybrid Multi Frame',
+    VerificationMethod.clientEmbedding => 'Generate an embedding on-device, then verify it.',
+    VerificationMethod.hybridBestFrame => 'Select the best frame before verification.',
+    VerificationMethod.hybridMultiFrame => 'Use multiple strong frames for verification.',
   };
   String get description => switch (this) {
     VerificationMethod.fullClip => 'Capture a short clip and verify server-side.',
@@ -42,13 +43,17 @@ class _FaceMobileDemoAppState extends State<FaceMobileDemoApp> {
   @override
   Widget build(BuildContext context) {
     final pages = [
-      VerifyPage(state: state, method: method, reference: reference,
-          onStart: () => setState(() => state = VerificationState.camera),
-          onContinue: () => setState(() => state = VerificationState.processing),
-          onMatch: () => setState(() => state = VerificationState.match),
-          onNoMatch: () => setState(() => state = VerificationState.noMatch),
-          onReset: () => setState(() => state = VerificationState.ready),
-          onHelp: () => setState(() => index = 4)),
+      VerifyPage(
+        state: state,
+        method: method,
+        reference: reference,
+        onStart: () => setState(() => state = VerificationState.camera),
+        onContinue: () => setState(() => state = VerificationState.processing),
+        onMatch: () => setState(() => state = VerificationState.match),
+        onNoMatch: () => setState(() => state = VerificationState.noMatch),
+        onReset: () => setState(() => state = VerificationState.ready),
+        onHelp: () => setState(() => index = 4),
+      ),
       MethodsPage(selected: method, onSelected: (v) => setState(() => method = v)),
       ReferencePage(selected: reference, onSelected: (v) => setState(() => reference = v)),
       SettingsPage(config: widget.config, mode: mode, onModeChanged: (v) => setState(() => mode = v)),
@@ -101,12 +106,14 @@ class VerifyPage extends StatelessWidget {
         ]);
       case VerificationState.camera:
         card = Column(children: [
-          Container(height: 260, width: double.infinity,
-            decoration: BoxDecoration(color: Theme.of(context).colorScheme.surfaceContainerHighest, borderRadius: BorderRadius.circular(20)),
-            child: const Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-              Icon(Icons.camera_alt_outlined, size: 64), SizedBox(height: 12),
-              Text('Camera placeholder'), Text('CameraX is introduced in M03.'),
-            ])),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(20),
+            child: const SizedBox(
+              height: 260,
+              width: double.infinity,
+              child: CameraPreviewPanel(),
+            ),
+          ),
           const SizedBox(height: 16),
           const Text('Center your face inside the guide.'),
           const SizedBox(height: 12),
@@ -161,21 +168,11 @@ class MethodsPage extends StatelessWidget {
     const Text('Choose a method for the next verification. Execution is introduced in later phases.'),
     RadioGroup<VerificationMethod>(
       groupValue: selected,
-      onChanged: (v) {
-        if (v != null) onSelected(v);
-      },
-      child: Column(
-        children: [
-          for (final m in VerificationMethod.values)
-            Card(
-              child: RadioListTile<VerificationMethod>(
-                value: m,
-                title: Text(m.label),
-                subtitle: Text(m.description),
-              ),
-            ),
-        ],
-      ),
+      onChanged: (v) { if (v != null) onSelected(v); },
+      child: Column(children: [
+        for (final m in VerificationMethod.values)
+          Card(child: RadioListTile<VerificationMethod>(value: m, title: Text(m.label), subtitle: Text(m.description))),
+      ]),
     ),
   ]);
 }
@@ -193,25 +190,15 @@ class ReferencePage extends StatelessWidget {
     const Text('Select which registered identity the verification flow should target.'),
     RadioGroup<String>(
       groupValue: selected,
-      onChanged: (v) {
-        if (v != null) onSelected(v);
-      },
-      child: Column(
-        children: [
-          for (final r in values)
-            Card(
-              child: RadioListTile<String>(
-                value: r,
-                title: Text(r),
-                subtitle: Text(
-                  r == 'Demo reference'
-                      ? 'Safe local demo selection'
-                      : 'Placeholder reference',
-                ),
-              ),
-            ),
-        ],
-      ),
+      onChanged: (v) { if (v != null) onSelected(v); },
+      child: Column(children: [
+        for (final r in values)
+          Card(child: RadioListTile<String>(
+            value: r,
+            title: Text(r),
+            subtitle: Text(r == 'Demo reference' ? 'Safe local demo selection' : 'Placeholder reference'),
+          )),
+      ]),
     ),
   ]);
 }
@@ -252,6 +239,6 @@ class HelpPage extends StatelessWidget {
     Text('Help & About', style: Theme.of(context).textTheme.headlineSmall),
     const ExpansionTile(title: Text('Verify Identity'), children: [Padding(padding: EdgeInsets.all(16), child: Text('Select a reference and method, capture the face, then review the deterministic result state.'))]),
     const ExpansionTile(title: Text('Security boundary'), children: [Padding(padding: EdgeInsets.all(16), child: Text('Client-generated biometric evidence is untrusted. Production security controls are introduced in later phases.'))]),
-    const ExpansionTile(title: Text('About this demo'), children: [Padding(padding: EdgeInsets.all(16), child: Text('M02 defines the product UI and state model. CameraX, detection, liveness, ML and backend execution are intentionally not part of this phase.'))]),
+    const ExpansionTile(title: Text('About this demo'), children: [Padding(padding: EdgeInsets.all(16), child: Text('M03 introduces CameraX preview and bounded frame analysis. Face detection, liveness, ML and backend execution remain out of scope.'))]),
   ]);
 }
