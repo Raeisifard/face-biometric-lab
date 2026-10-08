@@ -96,7 +96,7 @@ class VerifyPage extends StatelessWidget {
           const SizedBox(height: 12),
           Text('Ready to verify', style: Theme.of(context).textTheme.titleLarge),
           Text('Method: ${method.label}'),
-          Text('Reference: ${reference}'),
+          Text('Reference: $reference'),
           TextButton.icon(onPressed: onHelp, icon: const Icon(Icons.info_outline), label: const Text('How verification works')),
         ]);
       case VerificationState.camera:
@@ -138,7 +138,7 @@ class VerifyPage extends StatelessWidget {
       const SizedBox(height: 6),
       const Text('Confirm a face against the selected reference.'),
       const SizedBox(height: 16),
-      Text('Flow: ${state.name}, style: Theme.of(context).textTheme.labelLarge),
+      Text('Flow: ${state.name}', style: Theme.of(context).textTheme.labelLarge),
       const SizedBox(height: 12),
       Card(child: Padding(padding: const EdgeInsets.all(20), child: card)),
       if (state == VerificationState.ready) ...[
