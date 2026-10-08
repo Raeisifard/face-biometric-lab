@@ -40,6 +40,8 @@ class CameraPreviewPlatformView(
         clipToOutline = true
     }
     private val cameraExecutor: ExecutorService = Executors.newSingleThreadExecutor()
+    private val yuNetDetector = YuNetDetector(context)
+    private var lastDetectionNanos = 0L
     private val mainHandler = Handler(Looper.getMainLooper())
     private val released = AtomicBoolean(false)
     private val frameCount = AtomicLong(0)
@@ -116,7 +118,15 @@ class CameraPreviewPlatformView(
                             )
                         }
                     }
+                    val now = System.nanoTime()
+                    if (now - lastDetectionNanos >= 200_000_000L) {
+                        lastDetectionNanos = now
+                        val detection = yuNetDetector.detect(image)
+                        emit { it.success(detectionEvent(detection, count)) }
+                    }
                 }
+            } catch (error: Exception) {
+                emit { it.error("FACE_DETECTION_FAILED", error.message, null) }
             } finally {
                 image.close()
             }
@@ -150,10 +160,34 @@ class CameraPreviewPlatformView(
         }
     }
 
+    private fun detectionEvent(result: YuNetResult, sequence: Long): Map<String, Any> {
+        val faces = result.faces.map { face ->
+            mapOf(
+                "x" to face.x,
+                "y" to face.y,
+                "width" to face.width,
+                "height" to face.height,
+                "confidence" to face.confidence,
+                "landmarks" to face.landmarks.toList()
+            )
+        }
+        return mapOf(
+            "type" to "detection",
+            "sequence" to sequence,
+            "modelId" to YuNetDetector.MODEL_ID,
+            "status" to result.status.name,
+            "imageWidth" to result.imageWidth,
+            "imageHeight" to result.imageHeight,
+            "processingMs" to result.processingMs,
+            "faces" to faces
+        )
+    }
+
     override fun dispose() {
         if (!released.compareAndSet(false, true)) return
         analysis?.clearAnalyzer()
         cameraProvider?.unbindAll()
+        yuNetDetector.close()
         cameraExecutor.shutdown()
         mainHandler.removeCallbacksAndMessages(null)
     }
