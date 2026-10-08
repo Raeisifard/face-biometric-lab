@@ -26,11 +26,14 @@ void main() {
     expect(find.text('Help'), findsOneWidget);
   });
 
-  testWidgets('runs deterministic capture to processing to match flow', (tester) async {
+  testWidgets('runs camera flow to processing to match flow', (tester) async {
     await tester.pumpWidget(buildApp());
     await tester.tap(find.text('Start verification'));
     await tester.pump();
-    expect(find.text('Camera placeholder'), findsOneWidget);
+    // The native CameraX PlatformView is intentionally not asserted in the
+    // Flutter VM test. Its rendering and permission lifecycle are verified on
+    // an Android emulator or physical device during M03 acceptance.
+    expect(find.widgetWithText(FilledButton, 'Continue'), findsOneWidget);
 
     final continueButton = find.widgetWithText(FilledButton, 'Continue');
     final verificationList = find.byType(ListView).first;
