@@ -138,7 +138,7 @@ class VerifyPage extends StatelessWidget {
       const SizedBox(height: 6),
       const Text('Confirm a face against the selected reference.'),
       const SizedBox(height: 16),
-      Text('Flow: ' + state.name, style: Theme.of(context).textTheme.labelLarge),
+      Text('Flow: ${state.name}, style: Theme.of(context).textTheme.labelLarge),
       const SizedBox(height: 12),
       Card(child: Padding(padding: const EdgeInsets.all(20), child: card)),
       if (state == VerificationState.ready) ...[
