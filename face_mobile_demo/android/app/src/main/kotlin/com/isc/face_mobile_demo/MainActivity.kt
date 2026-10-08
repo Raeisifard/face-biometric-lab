@@ -1,6 +1,7 @@
 package com.isc.face_mobile_demo
 
-import android.os.Bundle
+import android.content.pm.PackageManager
+import android.content.res.Configuration
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -11,16 +12,16 @@ class MainActivity : FlutterActivity() {
         private const val BRIDGE_VERSION = "1.1"
     }
 
+    private var cameraFactory: CameraPreviewFactory? = null
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
 
-        flutterEngine
-            .platformViewsController
-            .registry
-            .registerViewFactory(
-                CameraPreviewFactory.VIEW_TYPE,
-                CameraPreviewFactory(this, flutterEngine.dartExecutor.binaryMessenger)
-            )
+        cameraFactory = CameraPreviewFactory(this, flutterEngine.dartExecutor.binaryMessenger)
+        flutterEngine.platformViewsController.registry.registerViewFactory(
+            CameraPreviewFactory.VIEW_TYPE,
+            cameraFactory!!
+        )
 
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
             .setMethodCallHandler { call, result ->
@@ -46,9 +47,14 @@ class MainActivity : FlutterActivity() {
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == CameraPreviewFactory.CAMERA_PERMISSION_REQUEST &&
-            grantResults.firstOrNull() == android.content.pm.PackageManager.PERMISSION_GRANTED
+            grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED
         ) {
-            recreate()
+            cameraFactory?.restartCamera()
         }
+    }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        cameraFactory?.updateRotation()
     }
 }
