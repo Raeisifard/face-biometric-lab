@@ -1,136 +1,227 @@
 import 'package:flutter/material.dart';
 import 'core/config/app_config.dart';
 import 'core/platform/platform_api.dart';
-import 'core/platform/platform_health.dart';
 
-class FaceMobileDemoApp extends StatelessWidget {
+enum VerificationState { ready, camera, processing, match, noMatch }
+enum VerificationMethod { fullClip, serverLiveStream, clientEmbedding, hybridBestFrame, hybridMultiFrame }
+enum ExperienceMode { customer, developer }
+
+extension VerificationMethodX on VerificationMethod {
+  String get label => switch (this) {
+    VerificationMethod.fullClip => 'Full Clip',
+    VerificationMethod.serverLiveStream => 'Server Live Stream',
+    VerificationMethod.clientEmbedding => 'Client Embedding',
+    VerificationMethod.hybridBestFrame => 'Hybrid Best Frame',
+    VerificationMethod.hybridMultiFrame => 'Hybrid Multi Frame',
+  };
+  String get description => switch (this) {
+    VerificationMethod.fullClip => 'Capture a short clip and verify server-side.',
+    VerificationMethod.serverLiveStream => 'Stream selected frames for server verification.',
+    VerificationMethod.clientEmbedding => 'Generate an embedding on-device, then verify it.',
+    VerificationMethod.hybridBestFrame => 'Select the best frame before verification.',
+    VerificationMethod.hybridMultiFrame => 'Use multiple strong frames for verification.',
+  };
+}
+
+class FaceMobileDemoApp extends StatefulWidget {
   const FaceMobileDemoApp({super.key, this.platformApi, this.config = AppConfig.defaults});
-
   final PlatformApi? platformApi;
   final AppConfig config;
 
   @override
+  State<FaceMobileDemoApp> createState() => _FaceMobileDemoAppState();
+}
+
+class _FaceMobileDemoAppState extends State<FaceMobileDemoApp> {
+  int index = 0;
+  VerificationMethod method = VerificationMethod.hybridBestFrame;
+  String reference = 'Demo reference';
+  ExperienceMode mode = ExperienceMode.customer;
+  VerificationState state = VerificationState.ready;
+
+  @override
   Widget build(BuildContext context) {
+    final pages = [
+      VerifyPage(state: state, method: method, reference: reference,
+          onStart: () => setState(() => state = VerificationState.camera),
+          onContinue: () => setState(() => state = VerificationState.processing),
+          onMatch: () => setState(() => state = VerificationState.match),
+          onNoMatch: () => setState(() => state = VerificationState.noMatch),
+          onReset: () => setState(() => state = VerificationState.ready),
+          onHelp: () => setState(() => index = 4)),
+      MethodsPage(selected: method, onSelected: (v) => setState(() => method = v)),
+      ReferencePage(selected: reference, onSelected: (v) => setState(() => reference = v)),
+      SettingsPage(config: widget.config, mode: mode, onModeChanged: (v) => setState(() => mode = v)),
+      const HelpPage(),
+    ];
     return MaterialApp(
       title: 'Face Mobile Demo',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo), useMaterial3: true),
-      home: PlatformStatusPage(platformApi: platformApi ?? MethodChannelPlatformApi(), config: config),
-    );
-  }
-}
-
-class PlatformStatusPage extends StatefulWidget {
-  const PlatformStatusPage({super.key, required this.platformApi, required this.config});
-  final PlatformApi platformApi;
-  final AppConfig config;
-
-  @override
-  State<PlatformStatusPage> createState() => _PlatformStatusPageState();
-}
-
-class _PlatformStatusPageState extends State<PlatformStatusPage> {
-  PlatformHealth? _health;
-  Object? _error;
-  bool _loading = true;
-
-  @override
-  void initState() { super.initState(); _loadHealth(); }
-
-  Future<void> _loadHealth() async {
-    setState(() { _loading = true; _error = null; });
-    try {
-      final health = await widget.platformApi.getHealth();
-      if (!mounted) return;
-      setState(() { _health = health; _loading = false; });
-    } catch (error) {
-      if (!mounted) return;
-      setState(() { _error = error; _loading = false; });
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final health = _health;
-    return Scaffold(
-      appBar: AppBar(title: const Text('Face Mobile Demo')),
-      body: ListView(
-        padding: const EdgeInsets.all(24),
-        children: [
-          Text('M01 Foundation', style: Theme.of(context).textTheme.headlineSmall),
-          const SizedBox(height: 8),
-          const Text('Flutter presentation + Kotlin platform bridge'),
-          const SizedBox(height: 24),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: _loading
-                  ? const Center(child: CircularProgressIndicator())
-                  : _error != null
-                      ? _ErrorView(error: _error!, onRetry: _loadHealth)
-                      : _HealthView(health: health!),
-            ),
-          ),
-          const SizedBox(height: 16),
-          ListTile(title: const Text('Environment'), subtitle: Text(widget.config.environment)),
-          ListTile(title: const Text('Face service'), subtitle: Text(widget.config.serviceBaseUrl)),
-          ListTile(title: const Text('Demo mode'), subtitle: Text(widget.config.demoMode ? 'Enabled' : 'Disabled')),
-        ],
+      theme: ThemeData(useMaterial3: true, colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo)),
+      home: Scaffold(
+        appBar: AppBar(title: const Text('Face Mobile Demo'), actions: [
+          IconButton(tooltip: 'Help', icon: const Icon(Icons.help_outline), onPressed: () => setState(() => index = 4)),
+        ]),
+        body: IndexedStack(index: index, children: pages),
+        bottomNavigationBar: NavigationBar(
+          selectedIndex: index,
+          onDestinationSelected: (v) => setState(() => index = v),
+          destinations: const [
+            NavigationDestination(icon: Icon(Icons.face_outlined), label: 'Verify'),
+            NavigationDestination(icon: Icon(Icons.tune_outlined), label: 'Method'),
+            NavigationDestination(icon: Icon(Icons.badge_outlined), label: 'Reference'),
+            NavigationDestination(icon: Icon(Icons.settings_outlined), label: 'Settings'),
+            NavigationDestination(icon: Icon(Icons.help_outline), label: 'Help'),
+          ],
+        ),
       ),
     );
   }
 }
 
-class _HealthView extends StatelessWidget {
-  const _HealthView({required this.health});
-  final PlatformHealth health;
+class VerifyPage extends StatelessWidget {
+  const VerifyPage({super.key, required this.state, required this.method, required this.reference, required this.onStart, required this.onContinue, required this.onMatch, required this.onNoMatch, required this.onReset, required this.onHelp});
+  final VerificationState state;
+  final VerificationMethod method;
+  final String reference;
+  final VoidCallback onStart, onContinue, onMatch, onNoMatch, onReset, onHelp;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(children: [
-          Icon(health.isHealthy ? Icons.check_circle : Icons.error),
-          const SizedBox(width: 8),
-          Text(health.isHealthy ? 'Platform bridge ready' : 'Platform bridge error', style: Theme.of(context).textTheme.titleMedium),
-        ]),
-        const SizedBox(height: 16),
-        _ValueRow(label: 'API', value: health.apiName),
-        _ValueRow(label: 'Bridge', value: health.bridgeVersion),
-        _ValueRow(label: 'Platform', value: health.platform),
-        _ValueRow(label: 'Engine', value: health.engineState),
+    Widget card;
+    switch (state) {
+      case VerificationState.ready:
+        card = Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Icon(Icons.verified_user_outlined, size: 44),
+          const SizedBox(height: 12),
+          Text('Ready to verify', style: Theme.of(context).textTheme.titleLarge),
+          Text('Method: ' + method.label),
+          Text('Reference: ' + reference),
+          TextButton.icon(onPressed: onHelp, icon: const Icon(Icons.info_outline), label: const Text('How verification works')),
+        ]);
+      case VerificationState.camera:
+        card = Column(children: [
+          Container(height: 260, width: double.infinity,
+            decoration: BoxDecoration(color: Theme.of(context).colorScheme.surfaceContainerHighest, borderRadius: BorderRadius.circular(20)),
+            child: const Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+              Icon(Icons.camera_alt_outlined, size: 64), SizedBox(height: 12),
+              Text('Camera placeholder'), Text('CameraX is introduced in M03.'),
+            ])),
+          const SizedBox(height: 16),
+          const Text('Center your face inside the guide.'),
+          const SizedBox(height: 12),
+          FilledButton(onPressed: onContinue, child: const Text('Continue')),
+        ]);
+      case VerificationState.processing:
+        card = Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Row(children: [CircularProgressIndicator(), SizedBox(width: 12), Text('Processing verification…')]),
+          const SizedBox(height: 16),
+          const Text('M02 uses deterministic controls; no backend or ML is called.'),
+          const SizedBox(height: 12),
+          OutlinedButton(onPressed: onMatch, child: const Text('Demo Match')),
+          OutlinedButton(onPressed: onNoMatch, child: const Text('Demo No Match')),
+        ]);
+      case VerificationState.match:
+      case VerificationState.noMatch:
+        final match = state == VerificationState.match;
+        card = Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Icon(match ? Icons.check_circle : Icons.cancel, size: 56),
+          const SizedBox(height: 12),
+          Text(match ? 'Match' : 'No Match', style: Theme.of(context).textTheme.headlineSmall),
+          Text(match ? 'The selected reference matches the captured identity.' : 'The captured identity does not match the selected reference.'),
+          const SizedBox(height: 16),
+          OutlinedButton.icon(onPressed: onReset, icon: const Icon(Icons.replay), label: const Text('Verify again')),
+        ]);
+    }
+    return ListView(padding: const EdgeInsets.all(20), children: [
+      Text('Verify Identity', style: Theme.of(context).textTheme.headlineMedium),
+      const SizedBox(height: 6),
+      const Text('Confirm a face against the selected reference.'),
+      const SizedBox(height: 16),
+      Text('Flow: ' + state.name, style: Theme.of(context).textTheme.labelLarge),
+      const SizedBox(height: 12),
+      Card(child: Padding(padding: const EdgeInsets.all(20), child: card)),
+      if (state == VerificationState.ready) ...[
+        const SizedBox(height: 12),
+        FilledButton.icon(onPressed: onStart, icon: const Icon(Icons.camera_alt), label: const Text('Start verification')),
       ],
-    );
+    ]);
   }
 }
 
-class _ValueRow extends StatelessWidget {
-  const _ValueRow({required this.label, required this.value});
-  final String label;
-  final String value;
+class MethodsPage extends StatelessWidget {
+  const MethodsPage({super.key, required this.selected, required this.onSelected});
+  final VerificationMethod selected;
+  final ValueChanged<VerificationMethod> onSelected;
 
   @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
-        child: Row(children: [SizedBox(width: 110, child: Text(label)), Expanded(child: Text(value))]),
-      );
+  Widget build(BuildContext context) => ListView(padding: const EdgeInsets.all(20), children: [
+    Text('Verification method', style: Theme.of(context).textTheme.headlineSmall),
+    const SizedBox(height: 8),
+    const Text('Choose a method for the next verification. Execution is introduced in later phases.'),
+    for (final m in VerificationMethod.values)
+      Card(child: RadioListTile<VerificationMethod>(
+        value: m, groupValue: selected, onChanged: (v) { if (v != null) onSelected(v); },
+        title: Text(m.label), subtitle: Text(m.description),
+      )),
+  ]);
 }
 
-class _ErrorView extends StatelessWidget {
-  const _ErrorView({required this.error, required this.onRetry});
-  final Object error;
-  final VoidCallback onRetry;
+class ReferencePage extends StatelessWidget {
+  const ReferencePage({super.key, required this.selected, required this.onSelected});
+  final String selected;
+  final ValueChanged<String> onSelected;
+  static const values = ['Demo reference', 'Reference A', 'Reference B'];
 
   @override
-  Widget build(BuildContext context) => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('Platform bridge unavailable'),
-          const SizedBox(height: 8),
-          Text(error.toString()),
-          const SizedBox(height: 12),
-          FilledButton.icon(onPressed: onRetry, icon: const Icon(Icons.refresh), label: const Text('Retry')),
-        ],
-      );
+  Widget build(BuildContext context) => ListView(padding: const EdgeInsets.all(20), children: [
+    Text('Reference', style: Theme.of(context).textTheme.headlineSmall),
+    const SizedBox(height: 8),
+    const Text('Select which registered identity the verification flow should target.'),
+    for (final r in values)
+      Card(child: RadioListTile<String>(
+        value: r, groupValue: selected, onChanged: (v) { if (v != null) onSelected(v); },
+        title: Text(r), subtitle: Text(r == 'Demo reference' ? 'Safe local demo selection' : 'Placeholder reference'),
+      )),
+  ]);
+}
+
+class SettingsPage extends StatelessWidget {
+  const SettingsPage({super.key, required this.config, required this.mode, required this.onModeChanged});
+  final AppConfig config;
+  final ExperienceMode mode;
+  final ValueChanged<ExperienceMode> onModeChanged;
+
+  @override
+  Widget build(BuildContext context) => ListView(padding: const EdgeInsets.all(20), children: [
+    Text('Settings', style: Theme.of(context).textTheme.headlineSmall),
+    const SizedBox(height: 8),
+    const Text('Customer mode keeps the flow focused. Developer mode exposes demo diagnostics.'),
+    const SizedBox(height: 16),
+    SegmentedButton<ExperienceMode>(
+      segments: const [
+        ButtonSegment(value: ExperienceMode.customer, label: Text('Customer'), icon: Icon(Icons.person_outline)),
+        ButtonSegment(value: ExperienceMode.developer, label: Text('Developer'), icon: Icon(Icons.code)),
+      ],
+      selected: {mode}, onSelectionChanged: (v) => onModeChanged(v.first),
+    ),
+    const SizedBox(height: 20),
+    Card(child: ListTile(title: const Text('Environment'), subtitle: Text(config.environment))),
+    if (mode == ExperienceMode.developer) ...[
+      Card(child: ListTile(title: const Text('Face service'), subtitle: Text(config.serviceBaseUrl))),
+      const Card(child: ListTile(title: Text('Demo mode'), subtitle: Text('Enabled for deterministic M02 state previews'))),
+    ],
+  ]);
+}
+
+class HelpPage extends StatelessWidget {
+  const HelpPage({super.key});
+
+  @override
+  Widget build(BuildContext context) => ListView(padding: const EdgeInsets.all(20), children: [
+    Text('Help & About', style: Theme.of(context).textTheme.headlineSmall),
+    const ExpansionTile(title: Text('Verify Identity'), children: [Padding(padding: EdgeInsets.all(16), child: Text('Select a reference and method, capture the face, then review the deterministic result state.'))]),
+    const ExpansionTile(title: Text('Security boundary'), children: [Padding(padding: EdgeInsets.all(16), child: Text('Client-generated biometric evidence is untrusted. Production security controls are introduced in later phases.'))]),
+    const ExpansionTile(title: Text('About this demo'), children: [Padding(padding: EdgeInsets.all(16), child: Text('M02 defines the product UI and state model. CameraX, detection, liveness, ML and backend execution are intentionally not part of this phase.'))]),
+  ]);
 }
