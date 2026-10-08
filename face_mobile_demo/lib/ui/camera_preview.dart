@@ -63,26 +63,139 @@ class _CameraPreviewPanelState extends State<CameraPreviewPanel> {
           viewType: CameraApi.viewType,
           creationParamsCodec: StandardMessageCodec(),
         ),
+        Positioned.fill(
+          child: IgnorePointer(
+            child: CustomPaint(
+              painter: FaceDetectionOverlayPainter(detection),
+            ),
+          ),
+        ),
         Positioned(
           left: 12,
           right: 12,
           bottom: 12,
           child: DecoratedBox(
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               color: Colors.black54,
               borderRadius: BorderRadius.all(Radius.circular(12)),
             ),
             child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               child: Text(
                 label,
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.white),
+                style: const TextStyle(color: Colors.white),
               ),
             ),
           ),
         ),
       ],
     );
+  }
+}
+
+class FaceDetectionOverlayPainter extends CustomPainter {
+  FaceDetectionOverlayPainter(this.detection);
+
+  final FaceDetectionEvent? detection;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final event = detection;
+    if (event == null || event.faces.isEmpty) return;
+    if (event.imageWidth <= 0 || event.imageHeight <= 0) return;
+
+    final sourceSize = Size(
+      event.imageWidth.toDouble(),
+      event.imageHeight.toDouble(),
+    );
+
+    // CameraX PreviewView uses FILL_CENTER, which is equivalent to BoxFit.cover
+    // for the source dimensions reported by ImageAnalysis.
+    final scale = _coverScale(sourceSize, size);
+    final renderedWidth = sourceSize.width * scale;
+    final renderedHeight = sourceSize.height * scale;
+    final offsetX = (size.width - renderedWidth) / 2;
+    final offsetY = (size.height - renderedHeight) / 2;
+
+    final isSingleFace = event.status == 'SINGLE_FACE';
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3
+      ..color = isSingleFace ? Colors.greenAccent : Colors.orangeAccent;
+
+    final labelPaint = Paint()
+      ..style = PaintingStyle.fill
+      ..color = paint.color;
+
+    for (final face in event.faces) {
+      final box = _readBox(face);
+      if (box == null || box.width <= 0 || box.height <= 0) continue;
+
+      final rect = Rect.fromLTWH(
+        offsetX + box.left * scale,
+        offsetY + box.top * scale,
+        box.width * scale,
+        box.height * scale,
+      );
+
+      canvas.drawRect(rect, paint);
+
+      final label = isSingleFace ? 'FACE' : 'FACE';
+      final textPainter = TextPainter(
+        text: TextSpan(
+          text: label,
+          style: TextStyle(
+            color: labelPaint.color,
+            fontSize: 13,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+
+      final labelOffset = Offset(
+        rect.left,
+        (rect.top - textPainter.height - 4).clamp(0.0, size.height),
+      );
+      textPainter.paint(canvas, labelOffset);
+    }
+  }
+
+  double _coverScale(Size source, Size target) {
+    return (target.width / source.width > target.height / source.height)
+        ? target.width / source.width
+        : target.height / source.height;
+  }
+
+  Rect? _readBox(Map<String, dynamic> face) {
+    Map<String, dynamic>? box;
+    final rawBox = face['box'];
+    if (rawBox is Map) {
+      box = Map<String, dynamic>.from(rawBox);
+    }
+
+    num? number(String key) {
+      final value = box?[key] ?? face[key];
+      return value is num ? value : num.tryParse(value?.toString() ?? '');
+    }
+
+    final x = number('x');
+    final y = number('y');
+    final width = number('width');
+    final height = number('height');
+
+    if (x == null || y == null || width == null || height == null) return null;
+    return Rect.fromLTWH(
+      x.toDouble(),
+      y.toDouble(),
+      width.toDouble(),
+      height.toDouble(),
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant FaceDetectionOverlayPainter oldDelegate) {
+    return oldDelegate.detection != detection;
   }
 }
