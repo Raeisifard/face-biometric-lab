@@ -1,7 +1,6 @@
 package com.isc.face_mobile_demo
 
 import android.app.Activity
-import android.view.View
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.platform.PlatformView
@@ -35,7 +34,7 @@ class CameraPreviewFactory(
             requestCameraPermission = {
                 activity.requestPermissions(arrayOf(android.Manifest.permission.CAMERA), CAMERA_PERMISSION_REQUEST)
             },
-            events = eventSink
+            events = { eventSink }
         ).also { latestView = it }
     }
 
