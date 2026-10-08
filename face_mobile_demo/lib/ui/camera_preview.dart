@@ -156,7 +156,7 @@ class FaceDetectionOverlayPainter extends CustomPainter {
 
       final labelOffset = Offset(
         rect.left,
-        (rect.top - textPainter.height - 4).clamp(0.0, size.height),
+        (rect.top - textPainter.height - 4).clamp(0.0, size.height).toDouble(),
       );
       textPainter.paint(canvas, labelOffset);
     }
