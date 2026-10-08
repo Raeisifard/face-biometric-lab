@@ -19,9 +19,9 @@ class FakePlatformApi implements PlatformApi {
 void main() {
   testWidgets('shows native platform health', (tester) async {
     await tester.pumpWidget(
-      const FaceMobileDemoApp(
+      FaceMobileDemoApp(
         platformApi: FakePlatformApi(),
-        config: AppConfig(
+        config: const AppConfig(
           environment: 'test',
           serviceBaseUrl: 'http://test',
           demoMode: true,
