@@ -43,6 +43,8 @@ class CameraPreviewPlatformView(
     private val detectorExecutor: ExecutorService = Executors.newSingleThreadExecutor()
     @Volatile
     private var yuNetDetector: YuNetDetector? = null
+    @Volatile
+    private var detectorInitializationStarted = false
     private var lastDetectionNanos = 0L
     private val mainHandler = Handler(Looper.getMainLooper())
     private val released = AtomicBoolean(false)
@@ -84,7 +86,11 @@ class CameraPreviewPlatformView(
         }, ContextCompat.getMainExecutor(context))
     }
 
+    @Synchronized
     private fun initializeDetectorAsync() {
+        if (detectorInitializationStarted || yuNetDetector != null) return
+        detectorInitializationStarted = true
+
         detectorExecutor.execute {
             try {
                 val detector = YuNetDetector(context)
