@@ -10,7 +10,6 @@ import androidx.camera.core.ImageProxy
 import java.lang.reflect.Array
 import java.nio.ByteBuffer
 import java.nio.FloatBuffer
-import kotlin.math.exp
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sqrt
@@ -121,14 +120,16 @@ class YuNetDetector(
             val kps = values["kps_" + suffix] ?: error("Missing kps_" + suffix)
             for (r in 0 until rows) for (c in 0 until cols) {
                 val idx = r * cols + c
-                if (idx >= cls.size || idx >= obj.size) continue
+                if (idx >= cls.size || idx >= obj.size || idx * 4 + 3 >= bbox.size || idx * 10 + 9 >= kps.size) continue
                 val score = sqrt(cls[idx].coerceIn(0f, 1f) * obj[idx].coerceIn(0f, 1f))
                 if (score < confidenceThreshold) continue
+                // YuNet bbox outputs are left/top/right/bottom distances from
+                // the feature-map cell, not center offsets plus log(width/height).
                 val bi = idx * 4
-                val cx = (c + bbox[bi]) * stride
-                val cy = (r + bbox[bi + 1]) * stride
-                val w = exp(bbox[bi + 2]) * stride
-                val h = exp(bbox[bi + 3]) * stride
+                val left = (c - bbox[bi]) * stride
+                val top = (r - bbox[bi + 1]) * stride
+                val right = (c + bbox[bi + 2]) * stride
+                val bottom = (r + bbox[bi + 3]) * stride
                 val li = idx * 10
                 val landmarks = FloatArray(10)
                 for (n in 0 until 5) {
@@ -139,12 +140,15 @@ class YuNetDetector(
                         ((kps[li + n * 2 + 1] + r) * stride - padTop) / scale
                     ).coerceIn(0f, sourceHeight.toFloat())
                 }
+                val sourceLeft = ((left - padLeft) / scale).coerceIn(0f, sourceWidth.toFloat())
+                val sourceTop = ((top - padTop) / scale).coerceIn(0f, sourceHeight.toFloat())
+                val sourceRight = ((right - padLeft) / scale).coerceIn(0f, sourceWidth.toFloat())
+                val sourceBottom = ((bottom - padTop) / scale).coerceIn(0f, sourceHeight.toFloat())
+                val boxWidth = sourceRight - sourceLeft
+                val boxHeight = sourceBottom - sourceTop
+                if (boxWidth <= 0f || boxHeight <= 0f) continue
                 result += YuNetDetection(
-                    (((cx - w / 2f) - padLeft) / scale).coerceIn(0f, sourceWidth.toFloat()),
-                    (((cy - h / 2f) - padTop) / scale).coerceIn(0f, sourceHeight.toFloat()),
-                    (w / scale).coerceAtMost(sourceWidth.toFloat()),
-                    (h / scale).coerceAtMost(sourceHeight.toFloat()),
-                    landmarks, score
+                    sourceLeft, sourceTop, boxWidth, boxHeight, landmarks, score
                 )
             }
         }
