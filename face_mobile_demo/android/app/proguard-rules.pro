@@ -1,1 +1,1 @@
--keep class ai.onnxruntime.** { *; }\n
+-keep class ai.onnxruntime.** { *; }
