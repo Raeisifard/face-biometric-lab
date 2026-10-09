@@ -110,9 +110,9 @@ class FaceDetectionOverlayPainter extends CustomPainter {
       event.imageHeight.toDouble(),
     );
 
-    // CameraX PreviewView uses FILL_CENTER, which is equivalent to BoxFit.cover
-    // for the source dimensions reported by ImageAnalysis.
-    final scale = _coverScale(sourceSize, size);
+    // CameraPreviewPlatformView configures PreviewView.ScaleType.FIT_CENTER.
+    // Match that contain transform so boxes align with the visible preview.
+    final scale = _fitScale(sourceSize, size);
     final renderedWidth = sourceSize.width * scale;
     final renderedHeight = sourceSize.height * scale;
     final offsetX = (size.width - renderedWidth) / 2;
@@ -162,8 +162,8 @@ class FaceDetectionOverlayPainter extends CustomPainter {
     }
   }
 
-  double _coverScale(Size source, Size target) {
-    return (target.width / source.width > target.height / source.height)
+  double _fitScale(Size source, Size target) {
+    return (target.width / source.width < target.height / source.height)
         ? target.width / source.width
         : target.height / source.height;
   }
