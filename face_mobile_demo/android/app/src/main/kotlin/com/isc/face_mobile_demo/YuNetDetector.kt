@@ -126,19 +126,22 @@ class YuNetDetector(
                 if (score < confidenceThreshold) continue
                 // YuNet bbox outputs are left/top/right/bottom distances from
                 // the feature-map cell, not center offsets plus log(width/height).
-                val bi = idx * 4
-                val left = (c - bbox[bi]) * stride
-                val top = (r - bbox[bi + 1]) * stride
-                val right = (c + bbox[bi + 2]) * stride
-                val bottom = (r + bbox[bi + 3]) * stride
-                val li = idx * 10
+                // ONNX YuNet exports bbox/kps as NCHW tensors:
+                // [1, 4, H, W] and [1, 10, H, W]. After flattening, each
+                // channel occupies a complete grid; values are NOT interleaved
+                // per cell. Interleaving them creates many bogus nested boxes.
+                val gridSize = rows * cols
+                val left = (c - bbox[idx]) * stride
+                val top = (r - bbox[gridSize + idx]) * stride
+                val right = (c + bbox[2 * gridSize + idx]) * stride
+                val bottom = (r + bbox[3 * gridSize + idx]) * stride
                 val landmarks = FloatArray(10)
                 for (n in 0 until 5) {
                     landmarks[n * 2] = (
-                        ((kps[li + n * 2] + c) * stride - padLeft) / scale
+                        (kps[n * 2 * gridSize + idx] * stride + c * stride - padLeft) / scale
                     ).coerceIn(0f, sourceWidth.toFloat())
                     landmarks[n * 2 + 1] = (
-                        ((kps[li + n * 2 + 1] + r) * stride - padTop) / scale
+                        (kps[(n * 2 + 1) * gridSize + idx] * stride + r * stride - padTop) / scale
                     ).coerceIn(0f, sourceHeight.toFloat())
                 }
                 val sourceLeft = ((left - padLeft) / scale).coerceIn(0f, sourceWidth.toFloat())
