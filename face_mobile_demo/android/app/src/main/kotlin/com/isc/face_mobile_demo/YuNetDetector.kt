@@ -65,7 +65,17 @@ class YuNetDetector(
         }
         val sourceWidth = image.width
         val sourceHeight = image.height
-        val input = yuvToBgrTensor(image)
+        // Preserve the camera frame aspect ratio. Stretching a landscape or
+        // portrait frame directly to 320x320 distorts faces and hurts detection.
+        val scale = min(
+            INPUT_WIDTH.toFloat() / sourceWidth,
+            INPUT_HEIGHT.toFloat() / sourceHeight
+        )
+        val resizedWidth = (sourceWidth * scale).toInt().coerceIn(1, INPUT_WIDTH)
+        val resizedHeight = (sourceHeight * scale).toInt().coerceIn(1, INPUT_HEIGHT)
+        val padLeft = (INPUT_WIDTH - resizedWidth) / 2
+        val padTop = (INPUT_HEIGHT - resizedHeight) / 2
+        val input = yuvToBgrTensor(image, scale, resizedWidth, resizedHeight, padLeft, padTop)
         val tensor = OnnxTensor.createTensor(
             environment, FloatBuffer.wrap(input),
             longArrayOf(1, 3, INPUT_HEIGHT.toLong(), INPUT_WIDTH.toLong())
@@ -75,7 +85,7 @@ class YuNetDetector(
                 val values = session.outputNames.associateWith { name ->
                     flatten(outputs.get(session.outputNames.indexOf(name)).value)
                 }
-                val candidates = decode(values, sourceWidth, sourceHeight)
+                val candidates = decode(values, sourceWidth, sourceHeight, scale, padLeft, padTop)
                 val selected = nms(candidates)
                 val status = when (selected.size) {
                     0 -> YuNetResult.Status.NO_FACE
@@ -93,7 +103,12 @@ class YuNetDetector(
     }
 
     private fun decode(
-        values: Map<String, FloatArray>, sourceWidth: Int, sourceHeight: Int
+        values: Map<String, FloatArray>,
+        sourceWidth: Int,
+        sourceHeight: Int,
+        scale: Float,
+        padLeft: Int,
+        padTop: Int
     ): List<YuNetDetection> {
         val result = mutableListOf<YuNetDetection>()
         for (stride in STRIDES) {
@@ -117,16 +132,18 @@ class YuNetDetector(
                 val li = idx * 10
                 val landmarks = FloatArray(10)
                 for (n in 0 until 5) {
-                    landmarks[n * 2] = (kps[li + n * 2] + c) * stride *
-                        sourceWidth.toFloat() / INPUT_WIDTH
-                    landmarks[n * 2 + 1] = (kps[li + n * 2 + 1] + r) * stride *
-                        sourceHeight.toFloat() / INPUT_HEIGHT
+                    landmarks[n * 2] = (
+                        ((kps[li + n * 2] + c) * stride - padLeft) / scale
+                    ).coerceIn(0f, sourceWidth.toFloat())
+                    landmarks[n * 2 + 1] = (
+                        ((kps[li + n * 2 + 1] + r) * stride - padTop) / scale
+                    ).coerceIn(0f, sourceHeight.toFloat())
                 }
                 result += YuNetDetection(
-                    (cx - w / 2f) * sourceWidth / INPUT_WIDTH,
-                    (cy - h / 2f) * sourceHeight / INPUT_HEIGHT,
-                    w * sourceWidth / INPUT_WIDTH,
-                    h * sourceHeight / INPUT_HEIGHT,
+                    (((cx - w / 2f) - padLeft) / scale).coerceIn(0f, sourceWidth.toFloat()),
+                    (((cy - h / 2f) - padTop) / scale).coerceIn(0f, sourceHeight.toFloat()),
+                    (w / scale).coerceAtMost(sourceWidth.toFloat()),
+                    (h / scale).coerceAtMost(sourceHeight.toFloat()),
                     landmarks, score
                 )
             }
@@ -155,7 +172,14 @@ class YuNetDetector(
         return if (union <= 0f) 0f else intersection / union
     }
 
-    private fun yuvToBgrTensor(image: Image): FloatArray {
+    private fun yuvToBgrTensor(
+        image: Image,
+        scale: Float,
+        resizedWidth: Int,
+        resizedHeight: Int,
+        padLeft: Int,
+        padTop: Int
+    ): FloatArray {
         val targetWidth = INPUT_WIDTH
         val targetHeight = INPUT_HEIGHT
         val planes = image.planes
@@ -177,9 +201,19 @@ class YuNetDetector(
 
         var offset = 0
         for (y in 0 until targetHeight) {
-            val sy = y * image.height / targetHeight
             for (x in 0 until targetWidth) {
-                val sx = x * image.width / targetWidth
+                val insideImage = x >= padLeft && x < padLeft + resizedWidth &&
+                    y >= padTop && y < padTop + resizedHeight
+                if (!insideImage) {
+                    // Black letterbox padding; do not stretch the source frame.
+                    output[offset] = 0f
+                    output[planeSize + offset] = 0f
+                    output[2 * planeSize + offset] = 0f
+                    offset++
+                    continue
+                }
+                val sx = (((x - padLeft) / scale).toInt()).coerceIn(0, image.width - 1)
+                val sy = (((y - padTop) / scale).toInt()).coerceIn(0, image.height - 1)
                 val yy = sample(yPlane, yBuffer, sx, sy)
                 val uu = sample(uPlane, uBuffer, sx / 2, sy / 2) - 128
                 val vv = sample(vPlane, vBuffer, sx / 2, sy / 2) - 128
