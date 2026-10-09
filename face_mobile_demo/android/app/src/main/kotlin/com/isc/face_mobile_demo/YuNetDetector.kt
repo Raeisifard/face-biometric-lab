@@ -36,8 +36,8 @@ class YuNetDetector(
     companion object {
         const val MODEL_ASSET = "models/face_detection_yunet_2023mar.onnx"
         const val MODEL_ID = "yunet-2023mar"
-        private const val INPUT_WIDTH = 320
-        private const val INPUT_HEIGHT = 320
+        private const val INPUT_WIDTH = 640
+        private const val INPUT_HEIGHT = 640
         private val STRIDES = intArrayOf(8, 16, 32)
         private val REQUIRED_OUTPUTS = setOf(
             "cls_8", "cls_16", "cls_32", "obj_8", "obj_16", "obj_32",
