@@ -1,10 +1,10 @@
 allprojects {
-    /*repositories {
+    repositories {
         google()
         mavenCentral()
-    }*/
-    repositories {
-        maven{ url = uri("https://pub-azs.ir/api/mavens/") }
+        maven {
+            url = uri("https://pub-azs.ir/api/mavens/")
+        }
     }
 }
 

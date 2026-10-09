@@ -10,13 +10,13 @@ pluginManagement {
 
     includeBuild("$flutterSdkPath/packages/flutter_tools/gradle")
 
-    /*repositories {
+    repositories {
         google()
         mavenCentral()
         gradlePluginPortal()
-    }*/
-    repositories {
-        maven{ url = uri("https://pub-azs.ir/api/mavens/") }
+        maven {
+            url = uri("https://pub-azs.ir/api/mavens/")
+        }
     }
 }
 
@@ -24,6 +24,16 @@ plugins {
     id("dev.flutter.flutter-plugin-loader") version "1.0.0"
     id("com.android.application") version "8.11.1" apply false
     id("org.jetbrains.kotlin.android") version "2.2.20" apply false
+}
+
+dependencyResolutionManagement {
+    repositories {
+        google()
+        mavenCentral()
+        maven {
+            url = uri("https://pub-azs.ir/api/mavens/")
+        }
+    }
 }
 
 include(":app")
