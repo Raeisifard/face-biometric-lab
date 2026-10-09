@@ -28,7 +28,8 @@ data class YuNetResult(
 
 class YuNetDetector(
     context: Context,
-    private val confidenceThreshold: Float = 0.8f,
+    // Match face-client-simulator's YuNetFaceDetector/application.yml.
+    private val confidenceThreshold: Float = 0.75f,
     private val nmsThreshold: Float = 0.3f,
     private val topK: Int = 5000
 ) : AutoCloseable {
@@ -161,27 +162,14 @@ class YuNetDetector(
         while (sorted.isNotEmpty()) {
             val current = sorted.removeAt(0)
             selected += current
-            sorted.removeAll { candidate ->
-                // IoU is the usual NMS metric, but it can fail to remove a
-                // small duplicate box fully contained inside a larger box.
-                // Intersection-over-smaller-area handles that case without
-                // merging genuinely separate faces.
-                iou(current, candidate) >= nmsThreshold ||
-                    intersectionOverSmaller(current, candidate) >= 0.80f
-            }
+            // Match OpenCV FaceDetectorYN: suppress by IoU only. The
+            // intersection-over-smaller heuristic can incorrectly suppress
+            // nearby, genuinely distinct faces and is not part of Java's NMS.
+            sorted.removeAll { candidate -> iou(current, candidate) >= nmsThreshold }
         }
         return selected
     }
 
-    private fun intersectionOverSmaller(a: YuNetDetection, b: YuNetDetection): Float {
-        val left = max(a.x, b.x)
-        val top = max(a.y, b.y)
-        val right = min(a.x + a.width, b.x + b.width)
-        val bottom = min(a.y + a.height, b.y + b.height)
-        val intersection = max(0f, right - left) * max(0f, bottom - top)
-        val smallerArea = min(a.width * a.height, b.width * b.height)
-        return if (smallerArea <= 0f) 0f else intersection / smallerArea
-    }
 
     private fun iou(a: YuNetDetection, b: YuNetDetection): Float {
         val left = max(a.x, b.x)
