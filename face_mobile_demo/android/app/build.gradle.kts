@@ -1,3 +1,5 @@
+import java.net.URL
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
@@ -50,7 +52,7 @@ val downloadMediaPipeFaceModel by tasks.registering {
         val target = mediaPipeFaceModel.asFile
         if (!target.exists()) {
             target.parentFile.mkdirs()
-            val modelUrl = java.net.URL("https://storage.googleapis.com/mediapipe-assets/face_detection_short_range.tflite")
+            val modelUrl = URL("https://storage.googleapis.com/mediapipe-assets/face_detection_short_range.tflite")
             modelUrl.openStream().use { input ->
                 target.outputStream().use { output -> input.copyTo(output) }
             }
