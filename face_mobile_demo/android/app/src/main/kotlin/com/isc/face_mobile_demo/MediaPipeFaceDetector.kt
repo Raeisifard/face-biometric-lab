@@ -4,7 +4,6 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.os.SystemClock
 import androidx.camera.core.ImageProxy
-import androidx.camera.core.toBitmap
 import com.google.mediapipe.framework.image.BitmapImageBuilder
 import com.google.mediapipe.tasks.core.BaseOptions
 import com.google.mediapipe.tasks.vision.core.RunningMode
@@ -64,8 +63,8 @@ class MediaPipeFaceDetector(
             .setRunningMode(RunningMode.LIVE_STREAM)
             .setMinDetectionConfidence(0.65f)
             .setMinSuppressionThreshold(0.3f)
-            .setResultListener { result: FaceDetectorResult, inputImage ->
-                handleResult(result, inputImage.timestampMs())
+            .setResultListener { result: FaceDetectorResult, _ ->
+                handleResult(result)
             }
             .setErrorListener { error ->
                 pending.entries.firstOrNull()?.let { entry ->
@@ -104,8 +103,9 @@ class MediaPipeFaceDetector(
         }
     }
 
-    private fun handleResult(result: FaceDetectorResult, timestampMs: Long) {
-        val metadata = pending.remove(timestampMs)
+    private fun handleResult(result: FaceDetectorResult) {
+        val entry = pending.entries.firstOrNull()
+        val metadata = entry?.let { pending.remove(it.key) }
         try {
             if (metadata == null || closed.get()) return
             val faces = result.detections().mapNotNull { detection ->
