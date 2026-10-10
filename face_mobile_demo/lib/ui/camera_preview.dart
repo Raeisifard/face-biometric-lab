@@ -23,6 +23,21 @@ class _CameraPreviewPanelState extends State<CameraPreviewPanel> {
     super.initState();
     if (defaultTargetPlatform == TargetPlatform.android) {
       _subscription = _cameraApi.detections.listen((event) {
+        if (kDebugMode) {
+          final boxes = event.faces.take(8).map((face) {
+            final x = face['x'];
+            final y = face['y'];
+            final width = face['width'];
+            final height = face['height'];
+            final confidence = face['confidence'];
+            return 'x=$x,y=$y,w=$width,h=$height,score=$confidence';
+          }).join(' | ');
+          debugPrint(
+            '[FaceOverlay] seq=${event.sequence} status=${event.status} '
+            'count=${event.faceCount} image=${event.imageWidth}x${event.imageHeight} '
+            'processingMs=${event.processingMs} boxes=[$boxes]',
+          );
+        }
         if (mounted) setState(() => _detection = event);
       });
     }
@@ -119,6 +134,14 @@ class FaceDetectionOverlayPainter extends CustomPainter {
     final offsetY = (size.height - renderedHeight) / 2;
 
     final isSingleFace = event.status == 'SINGLE_FACE';
+    if (kDebugMode) {
+      debugPrint(
+        '[FaceOverlay] paint canvas=${size.width.toStringAsFixed(1)}x${size.height.toStringAsFixed(1)} '
+        'source=${sourceSize.width.toStringAsFixed(0)}x${sourceSize.height.toStringAsFixed(0)} '
+        'scale=${scale.toStringAsFixed(4)} offset=(${offsetX.toStringAsFixed(1)},${offsetY.toStringAsFixed(1)}) '
+        'status=${event.status} count=${event.faceCount}',
+      );
+    }
     final paint = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 3
