@@ -6,6 +6,7 @@ import ai.onnxruntime.OrtSession
 import android.content.Context
 import android.graphics.ImageFormat
 import android.media.Image
+import android.util.Log
 import androidx.camera.core.ImageProxy
 import java.lang.reflect.Array
 import java.nio.ByteBuffer
@@ -38,6 +39,8 @@ class YuNetDetector(
         const val MODEL_ID = "yunet-2023mar"
         private const val INPUT_WIDTH = 640
         private const val INPUT_HEIGHT = 640
+        private const val TAG = "YuNetFaceDetection"
+        private const val DEBUG_LOGGING = true
         private val STRIDES = intArrayOf(8, 16, 32)
         private val REQUIRED_OUTPUTS = setOf(
             "cls_8", "cls_16", "cls_32", "obj_8", "obj_16", "obj_32",
@@ -75,6 +78,14 @@ class YuNetDetector(
         val resizedHeight = (sourceHeight * scale).toInt().coerceIn(1, INPUT_HEIGHT)
         val padLeft = (INPUT_WIDTH - resizedWidth) / 2
         val padTop = (INPUT_HEIGHT - resizedHeight) / 2
+        if (DEBUG_LOGGING) {
+            Log.d(
+                TAG,
+                "frame source=${sourceWidth}x${sourceHeight}, format=${image.format}, " +
+                    "modelInput=${INPUT_WIDTH}x${INPUT_HEIGHT}, resized=${resizedWidth}x${resizedHeight}, " +
+                    "scale=$scale, padding=(left:$padLeft,top:$padTop), threshold=$confidenceThreshold, nms=$nmsThreshold"
+            )
+        }
         val input = yuvToBgrTensor(image, scale, resizedWidth, resizedHeight, padLeft, padTop)
         val tensor = OnnxTensor.createTensor(
             environment, FloatBuffer.wrap(input),
@@ -85,8 +96,29 @@ class YuNetDetector(
                 val values = session.outputNames.associateWith { name ->
                     flatten(outputs.get(session.outputNames.indexOf(name)).value)
                 }
+                if (DEBUG_LOGGING) {
+                    val outputSizes = values.entries
+                        .sortedBy { it.key }
+                        .joinToString { "${it.key}=${it.value.size}" }
+                    Log.d(TAG, "model outputs: $outputSizes")
+                }
                 val candidates = decode(values, sourceWidth, sourceHeight, scale, padLeft, padTop)
                 val selected = nms(candidates)
+                if (DEBUG_LOGGING) {
+                    val topCandidates = candidates.sortedByDescending { it.confidence }.take(8)
+                        .joinToString(separator = " | ") {
+                            "x=${it.x.toInt()},y=${it.y.toInt()},w=${it.width.toInt()},h=${it.height.toInt()},score=${"%.3f".format(java.util.Locale.US, it.confidence)}"
+                        }
+                    val finalFaces = selected.joinToString(separator = " | ") {
+                        "x=${it.x.toInt()},y=${it.y.toInt()},w=${it.width.toInt()},h=${it.height.toInt()},score=${"%.3f".format(java.util.Locale.US, it.confidence)}"
+                    }
+                    Log.d(
+                        TAG,
+                        "decode candidates=${candidates.size}; afterNms=${selected.size}; " +
+                            "status=${when (selected.size) { 0 -> "NO_FACE"; 1 -> "SINGLE_FACE"; else -> "MULTIPLE_FACES" }}; " +
+                            "topCandidates=[$topCandidates]; selected=[$finalFaces]"
+                    )
+                }
                 val status = when (selected.size) {
                     0 -> YuNetResult.Status.NO_FACE
                     1 -> YuNetResult.Status.SINGLE_FACE
