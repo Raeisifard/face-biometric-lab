@@ -40,7 +40,7 @@ class YuNetDetector(
         private const val INPUT_WIDTH = 640
         private const val INPUT_HEIGHT = 640
         private const val TAG = "YuNetFaceDetection"
-        private const val DEBUG_LOGGING = BuildConfig.DEBUG
+        private const val DEBUG_LOGGING = true
         private val STRIDES = intArrayOf(8, 16, 32)
         private val REQUIRED_OUTPUTS = setOf(
             "cls_8", "cls_16", "cls_32", "obj_8", "obj_16", "obj_32",
