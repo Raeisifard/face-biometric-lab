@@ -36,7 +36,7 @@ class CameraPreviewPlatformView(
         // composition. SurfaceView-backed PERFORMANCE mode can escape those
         // bounds on some Android devices/emulators.
         implementationMode = PreviewView.ImplementationMode.COMPATIBLE
-        scaleType = PreviewView.ScaleType.FIT_CENTER
+        scaleType = PreviewView.ScaleType.FILL_CENTER
         clipToOutline = true
     }
     private val cameraExecutor: ExecutorService = Executors.newSingleThreadExecutor()
