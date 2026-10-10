@@ -31,9 +31,8 @@ data class MediaPipeDetectionResult(
 )
 
 /**
- * MediaPipe's LIVE_STREAM mode is asynchronous and drops incoming frames while
- * it is busy. This prevents a slow inference from building a queue behind the
- * camera preview.
+ * LIVE_STREAM is asynchronous. Only one frame is submitted at a time so
+ * ignored frames cannot leak their Bitmap while the detector is busy.
  */
 class MediaPipeFaceDetector(
     context: Context,
@@ -54,17 +53,14 @@ class MediaPipeFaceDetector(
     )
 
     private val closed = AtomicBoolean(false)
+    private val inFlight = AtomicBoolean(false)
     private val pending = ConcurrentHashMap<Long, FrameMetadata>()
     private var lastTimestampMs = 0L
     private val detector: FaceDetector
 
     init {
         val options = FaceDetector.FaceDetectorOptions.builder()
-            .setBaseOptions(
-                BaseOptions.builder()
-                    .setModelAssetPath(MODEL_ASSET)
-                    .build()
-            )
+            .setBaseOptions(BaseOptions.builder().setModelAssetPath(MODEL_ASSET).build())
             .setRunningMode(RunningMode.LIVE_STREAM)
             .setMinDetectionConfidence(0.65f)
             .setMinSuppressionThreshold(0.3f)
@@ -72,6 +68,10 @@ class MediaPipeFaceDetector(
                 handleResult(result, inputImage.timestampMs())
             }
             .setErrorListener { error ->
+                pending.entries.firstOrNull()?.let { entry ->
+                    if (pending.remove(entry.key, entry.value)) entry.value.bitmap.recycle()
+                }
+                inFlight.set(false)
                 onError(error)
             }
             .build()
@@ -80,29 +80,34 @@ class MediaPipeFaceDetector(
 
     @Synchronized
     fun detect(image: ImageProxy, sequence: Long) {
-        if (closed.get()) return
-        val bitmap = image.toBitmap()
-        val timestamp = maxOf(SystemClock.uptimeMillis(), lastTimestampMs + 1L)
-        lastTimestampMs = timestamp
-        pending[timestamp] = FrameMetadata(
-            sequence = sequence,
-            width = bitmap.width,
-            height = bitmap.height,
-            startedNanos = System.nanoTime(),
-            bitmap = bitmap
-        )
+        if (closed.get() || !inFlight.compareAndSet(false, true)) return
+        var bitmap: Bitmap? = null
         try {
+            bitmap = image.toBitmap()
+            val timestamp = maxOf(SystemClock.uptimeMillis(), lastTimestampMs + 1L)
+            lastTimestampMs = timestamp
+            pending[timestamp] = FrameMetadata(
+                sequence = sequence,
+                width = bitmap.width,
+                height = bitmap.height,
+                startedNanos = System.nanoTime(),
+                bitmap = bitmap
+            )
             detector.detectAsync(BitmapImageBuilder(bitmap).build(), timestamp)
         } catch (error: Throwable) {
-            pending.remove(timestamp)?.bitmap?.recycle()
+            bitmap?.let { created ->
+                val entry = pending.entries.firstOrNull { it.value.bitmap === created }
+                if (entry != null) pending.remove(entry.key)?.bitmap?.recycle() else created.recycle()
+            }
+            inFlight.set(false)
             onError(error)
         }
     }
 
     private fun handleResult(result: FaceDetectorResult, timestampMs: Long) {
-        val metadata = pending.remove(timestampMs) ?: return
+        val metadata = pending.remove(timestampMs)
         try {
-            if (closed.get()) return
+            if (metadata == null || closed.get()) return
             val faces = result.detections().mapNotNull { detection ->
                 val box = detection.boundingBox()
                 if (box.width() <= 0f || box.height() <= 0f) return@mapNotNull null
@@ -136,7 +141,8 @@ class MediaPipeFaceDetector(
         } catch (error: Throwable) {
             onError(error)
         } finally {
-            metadata.bitmap.recycle()
+            metadata?.bitmap?.recycle()
+            inFlight.set(false)
         }
     }
 
