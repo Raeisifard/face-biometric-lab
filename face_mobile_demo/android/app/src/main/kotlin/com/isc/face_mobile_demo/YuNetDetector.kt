@@ -40,7 +40,7 @@ class YuNetDetector(
         private const val INPUT_WIDTH = 640
         private const val INPUT_HEIGHT = 640
         private const val TAG = "YuNetFaceDetection"
-        private const val DEBUG_LOGGING = true
+        private const val DEBUG_LOGGING = BuildConfig.DEBUG
         private val STRIDES = intArrayOf(8, 16, 32)
         private val REQUIRED_OUTPUTS = setOf(
             "cls_8", "cls_16", "cls_32", "obj_8", "obj_16", "obj_32",
@@ -69,7 +69,7 @@ class YuNetDetector(
         val sourceWidth = image.width
         val sourceHeight = image.height
         // Preserve the camera frame aspect ratio. Stretching a landscape or
-        // portrait frame directly to 320x320 distorts faces and hurts detection.
+        // portrait frame directly to a square distorts faces and hurts detection.
         val scale = min(
             INPUT_WIDTH.toFloat() / sourceWidth,
             INPUT_HEIGHT.toFloat() / sourceHeight
