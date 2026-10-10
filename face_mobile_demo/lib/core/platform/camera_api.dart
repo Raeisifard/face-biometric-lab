@@ -35,6 +35,7 @@ class CameraFrameEvent {
 
 class FaceDetectionEvent {
   const FaceDetectionEvent({
+    required this.sequence,
     required this.status,
     required this.modelId,
     required this.imageWidth,
@@ -43,6 +44,7 @@ class FaceDetectionEvent {
     required this.faces,
   });
 
+  final int sequence;
   final String status;
   final String modelId;
   final int imageWidth;
@@ -61,6 +63,7 @@ class FaceDetectionEvent {
         : const <Map<String, dynamic>>[];
     int number(String key) => map[key] is num ? (map[key] as num).toInt() : 0;
     return FaceDetectionEvent(
+      sequence: number('sequence'),
       status: map['status']?.toString() ?? 'NO_FACE',
       modelId: map['modelId']?.toString() ?? 'unknown',
       imageWidth: number('imageWidth'),
