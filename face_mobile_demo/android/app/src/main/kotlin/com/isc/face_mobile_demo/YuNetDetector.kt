@@ -155,7 +155,10 @@ class YuNetDetector(
             for (r in 0 until rows) for (c in 0 until cols) {
                 val idx = r * cols + c
                 if (idx >= cls.size || idx >= obj.size || idx * 4 + 3 >= bbox.size || idx * 10 + 9 >= kps.size) continue
-                val score = sqrt(cls[idx].coerceIn(0f, 1f) * obj[idx].coerceIn(0f, 1f))
+                // YuNet combines classification and objectness probabilities by multiplication.
+                // sqrt(product) inflates marginal detections and lets weak partial-face boxes
+                // pass the confidence threshold too easily.
+                val score = cls[idx].coerceIn(0f, 1f) * obj[idx].coerceIn(0f, 1f)
                 if (score < confidenceThreshold) continue
                 // YuNet bbox outputs are left/top/right/bottom distances from
                 // the feature-map cell, not center offsets plus log(width/height).
