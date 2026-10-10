@@ -30,11 +30,6 @@ class CameraPreviewPlatformView(
 ) : PlatformView {
 
     private val previewView = PreviewView(context).apply {
-        // Flutter embeds this PreviewView inside a bounded AndroidView. Use the
-        // TextureView-backed implementation so the camera surface obeys the
-        // Flutter widget bounds and clips correctly in hybrid/platform-view
-        // composition. SurfaceView-backed PERFORMANCE mode can escape those
-        // bounds on some Android devices/emulators.
         implementationMode = PreviewView.ImplementationMode.COMPATIBLE
         scaleType = PreviewView.ScaleType.FIT_CENTER
         clipToOutline = true
@@ -42,7 +37,7 @@ class CameraPreviewPlatformView(
     private val cameraExecutor: ExecutorService = Executors.newSingleThreadExecutor()
     private val detectorExecutor: ExecutorService = Executors.newSingleThreadExecutor()
     @Volatile
-    private var yuNetDetector: YuNetDetector? = null
+    private var faceDetector: MediaPipeFaceDetector? = null
     @Volatile
     private var detectorInitializationStarted = false
     private var lastDetectionNanos = 0L
@@ -88,23 +83,40 @@ class CameraPreviewPlatformView(
 
     @Synchronized
     private fun initializeDetectorAsync() {
-        if (detectorInitializationStarted || yuNetDetector != null) return
+        if (detectorInitializationStarted || faceDetector != null) return
         detectorInitializationStarted = true
-
         detectorExecutor.execute {
             try {
-                val detector = YuNetDetector(context)
+                val detector = MediaPipeFaceDetector(
+                    context = context,
+                    onResult = { result, sequence ->
+                        emit { it.success(detectionEvent(result, sequence)) }
+                    },
+                    onError = { error ->
+                        emit {
+                            it.error(
+                                "FACE_DETECTION_FAILED",
+                                error.message ?: "MediaPipe face detection failed",
+                                null
+                            )
+                        }
+                    }
+                )
                 if (released.get()) {
                     detector.close()
                     return@execute
                 }
-                yuNetDetector = detector
-                emit { it.success(mapOf("type" to "detector_ready", "modelId" to YuNetDetector.MODEL_ID)) }
+                faceDetector = detector
+                emit {
+                    it.success(
+                        mapOf("type" to "detector_ready", "modelId" to MediaPipeFaceDetector.MODEL_ID)
+                    )
+                }
             } catch (error: Exception) {
                 emit {
                     it.error(
                         "FACE_DETECTOR_UNAVAILABLE",
-                        error.message ?: "YuNet detector initialization failed",
+                        error.message ?: "MediaPipe detector initialization failed",
                         null
                     )
                 }
@@ -115,7 +127,6 @@ class CameraPreviewPlatformView(
     private fun bindUseCases() {
         val provider = cameraProvider ?: return
         provider.unbindAll()
-
         val rotation = previewView.display?.rotation ?: Surface.ROTATION_0
 
         val preview = Preview.Builder()
@@ -150,13 +161,9 @@ class CameraPreviewPlatformView(
                         }
                     }
                     val now = System.nanoTime()
-                    if (now - lastDetectionNanos >= 200_000_000L) {
+                    if (now - lastDetectionNanos >= 100_000_000L) {
                         lastDetectionNanos = now
-                        val detector = yuNetDetector
-                        if (detector != null) {
-                            val detection = detector.detect(image)
-                            emit { it.success(detectionEvent(detection, count)) }
-                        }
+                        faceDetector?.detect(image, count)
                     }
                 }
             } catch (error: Exception) {
@@ -165,7 +172,6 @@ class CameraPreviewPlatformView(
                 image.close()
             }
         }
-
         analysis = imageAnalysis
 
         try {
@@ -194,7 +200,7 @@ class CameraPreviewPlatformView(
         }
     }
 
-    private fun detectionEvent(result: YuNetResult, sequence: Long): Map<String, Any> {
+    private fun detectionEvent(result: MediaPipeDetectionResult, sequence: Long): Map<String, Any> {
         val faces = result.faces.map { face ->
             mapOf(
                 "x" to face.x,
@@ -202,14 +208,14 @@ class CameraPreviewPlatformView(
                 "width" to face.width,
                 "height" to face.height,
                 "confidence" to face.confidence,
-                "landmarks" to face.landmarks.toList()
+                "landmarks" to face.landmarks
             )
         }
         return mapOf(
             "type" to "detection",
             "sequence" to sequence,
-            "modelId" to YuNetDetector.MODEL_ID,
-            "status" to result.status.name,
+            "modelId" to MediaPipeFaceDetector.MODEL_ID,
+            "status" to result.status,
             "imageWidth" to result.imageWidth,
             "imageHeight" to result.imageHeight,
             "processingMs" to result.processingMs,
@@ -221,8 +227,8 @@ class CameraPreviewPlatformView(
         if (!released.compareAndSet(false, true)) return
         analysis?.clearAnalyzer()
         cameraProvider?.unbindAll()
-        yuNetDetector?.close()
-        yuNetDetector = null
+        faceDetector?.close()
+        faceDetector = null
         cameraExecutor.shutdown()
         detectorExecutor.shutdownNow()
         mainHandler.removeCallbacksAndMessages(null)
