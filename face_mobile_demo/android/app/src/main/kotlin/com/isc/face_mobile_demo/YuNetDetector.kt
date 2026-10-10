@@ -13,7 +13,6 @@ import java.nio.ByteBuffer
 import java.nio.FloatBuffer
 import kotlin.math.max
 import kotlin.math.min
-import kotlin.math.sqrt
 
 data class YuNetDetection(
     val x: Float, val y: Float, val width: Float, val height: Float,
