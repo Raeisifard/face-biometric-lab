@@ -35,22 +35,32 @@ android {
 
 dependencies {
     val cameraXVersion = "1.4.2"
-    val onnxRuntimeVersion = "1.20.0"
     implementation("androidx.camera:camera-camera2:$cameraXVersion")
     implementation("androidx.camera:camera-lifecycle:$cameraXVersion")
     implementation("androidx.camera:camera-view:$cameraXVersion")
-    implementation("com.microsoft.onnxruntime:onnxruntime-android:$onnxRuntimeVersion")
+    implementation("com.google.mediapipe:tasks-vision:0.10.21")
 }
 
-val syncYuNetModel by tasks.registering(Copy::class) {
-    val source = rootProject.projectDir.resolve("../models/detector/face_detection_yunet_2023mar.onnx")
-    from(source)
-    into(layout.projectDirectory.dir("src/main/assets/models"))
-    onlyIf { source.exists() }
+val mediaPipeFaceModel = layout.projectDirectory.file("src/main/assets/models/face_detection_short_range.tflite")
+
+val downloadMediaPipeFaceModel by tasks.registering {
+    outputs.file(mediaPipeFaceModel)
+    outputs.upToDateWhen { mediaPipeFaceModel.asFile.exists() }
+    doLast {
+        val target = mediaPipeFaceModel.asFile
+        if (!target.exists()) {
+            target.parentFile.mkdirs()
+            val modelUrl = java.net.URL("https://storage.googleapis.com/mediapipe-assets/face_detection_short_range.tflite")
+            modelUrl.openStream().use { input ->
+                target.outputStream().use { output -> input.copyTo(output) }
+            }
+            logger.lifecycle("Downloaded MediaPipe BlazeFace model to ${target.absolutePath}")
+        }
+    }
 }
 
 tasks.named("preBuild") {
-    dependsOn(syncYuNetModel)
+    dependsOn(downloadMediaPipeFaceModel)
 }
 
 flutter {
