@@ -12,7 +12,7 @@ This branch experiments with Google's MediaPipe Face Detector (BlazeFace short-r
 
 Official Google-hosted model:
 
-- [Download face_detection_short_range.tflite](https://storage.googleapis.com/mediapipe-assets/face_detection_short_range.tflite)
+- [Download the official BlazeFace short-range TFLite model](https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite)
 
 The Android Gradle build downloads this model automatically to:
 
