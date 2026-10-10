@@ -32,7 +32,7 @@ class MainActivity : FlutterActivity() {
                             "bridgeVersion" to BRIDGE_VERSION,
                             "status" to "OK",
                             "platform" to "Android",
-                            "engineState" to "CAMERA_X_YUNET"
+                            "engineState" to "CAMERA_X_MEDIAPIPE"
                         )
                     )
                     else -> result.notImplemented()
