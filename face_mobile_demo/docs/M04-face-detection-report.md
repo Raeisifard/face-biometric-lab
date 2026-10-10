@@ -72,3 +72,34 @@ M04 is accepted only after:
    - no camera frame backlog or resource-retention issue is observed.
 
 The next phase must not start until these checks pass.
+
+## Face-detection diagnostics (debug builds)
+
+M04 emits privacy-conscious diagnostic logs for investigating incorrect face counts and overlay geometry without screenshots.
+
+- Android native tag: `YuNetFaceDetection`
+  - source frame/model-input dimensions, letterbox scale and padding;
+  - flattened output element counts for every YuNet output tensor;
+  - number of decoded candidates before NMS and detections after NMS;
+  - up to eight highest-confidence candidate boxes and selected boxes.
+- Flutter tag prefix: `[FaceOverlay]`
+  - detection sequence, status, count, image dimensions and processing time;
+  - source boxes received by Flutter;
+  - overlay canvas dimensions, scale and FIT_CENTER offsets.
+
+These logs are enabled only in Android debug builds. They do not log source images, landmarks, embeddings, names or identity references.
+
+On Windows, connect the Android device with USB debugging enabled and run:
+
+```powershell
+adb logcat -c
+adb logcat -v time -s YuNetFaceDetection:D flutter:I '*:S'
+```
+
+If Flutter-tag filtering varies by device/build, use:
+
+```powershell
+adb logcat -v time | Select-String 'YuNetFaceDetection|FaceOverlay'
+```
+
+Reproduce the issue for about 10 seconds, stop logging with Ctrl+C, and share the text output. A screenshot is not needed for the first diagnostic pass.
