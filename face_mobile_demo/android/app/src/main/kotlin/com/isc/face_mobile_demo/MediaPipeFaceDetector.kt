@@ -81,6 +81,7 @@ class MediaPipeFaceDetector(
     fun detect(image: ImageProxy, sequence: Long) {
         if (closed.get() || !inFlight.compareAndSet(false, true)) return
         var bitmap: Bitmap? = null
+        val frameStartedNanos = System.nanoTime()
         try {
             bitmap = image.toBitmap()
             val timestamp = maxOf(SystemClock.uptimeMillis(), lastTimestampMs + 1L)
@@ -89,7 +90,7 @@ class MediaPipeFaceDetector(
                 sequence = sequence,
                 width = bitmap.width,
                 height = bitmap.height,
-                startedNanos = System.nanoTime(),
+                startedNanos = frameStartedNanos,
                 bitmap = bitmap
             )
             detector.detectAsync(BitmapImageBuilder(bitmap).build(), timestamp)
@@ -148,8 +149,8 @@ class MediaPipeFaceDetector(
 
     override fun close() {
         if (!closed.compareAndSet(false, true)) return
+        detector.close()
         pending.values.forEach { it.bitmap.recycle() }
         pending.clear()
-        detector.close()
     }
 }
