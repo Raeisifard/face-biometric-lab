@@ -40,7 +40,6 @@ class YuNetDetector(
         private const val INPUT_WIDTH = 640
         private const val INPUT_HEIGHT = 640
         private const val TAG = "YuNetFaceDetection"
-        private const val DEBUG_LOGGING = true
         private val STRIDES = intArrayOf(8, 16, 32)
         private val REQUIRED_OUTPUTS = setOf(
             "cls_8", "cls_16", "cls_32", "obj_8", "obj_16", "obj_32",
@@ -48,6 +47,8 @@ class YuNetDetector(
         )
     }
 
+    private val debugLogging =
+        (context.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0
     private val environment = OrtEnvironment.getEnvironment()
     private val session: OrtSession
 
@@ -78,7 +79,7 @@ class YuNetDetector(
         val resizedHeight = (sourceHeight * scale).toInt().coerceIn(1, INPUT_HEIGHT)
         val padLeft = (INPUT_WIDTH - resizedWidth) / 2
         val padTop = (INPUT_HEIGHT - resizedHeight) / 2
-        if (DEBUG_LOGGING) {
+        if (debugLogging) {
             Log.d(
                 TAG,
                 "frame source=${sourceWidth}x${sourceHeight}, format=${image.format}, " +
@@ -96,7 +97,7 @@ class YuNetDetector(
                 val values = session.outputNames.associateWith { name ->
                     flatten(outputs.get(session.outputNames.indexOf(name)).value)
                 }
-                if (DEBUG_LOGGING) {
+                if (debugLogging) {
                     val outputSizes = values.entries
                         .sortedBy { it.key }
                         .joinToString { "${it.key}=${it.value.size}" }
@@ -104,7 +105,7 @@ class YuNetDetector(
                 }
                 val candidates = decode(values, sourceWidth, sourceHeight, scale, padLeft, padTop)
                 val selected = nms(candidates)
-                if (DEBUG_LOGGING) {
+                if (debugLogging) {
                     val topCandidates = candidates.sortedByDescending { it.confidence }.take(8)
                         .joinToString(separator = " | ") {
                             "x=${it.x.toInt()},y=${it.y.toInt()},w=${it.width.toInt()},h=${it.height.toInt()},score=${"%.3f".format(java.util.Locale.US, it.confidence)}"
